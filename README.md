@@ -147,3 +147,18 @@ interface Options {
   cache?: boolean;   // Cache compiled functions (default: true)
 }
 ```
+
+## Testing
+
+```bash
+npm test
+```
+
+Test coverage includes:
+- Property access (simple, nested, missing, optional)
+- Array operations (index, slice, spread, filter)
+- Arithmetic with operator precedence
+- String concatenation and template literals
+- Logical operations and null handling
+- Pipe operations and object construction
+- Strict mode error messages with suggestions
