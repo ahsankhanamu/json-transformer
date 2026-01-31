@@ -8,8 +8,8 @@ export { default as SettingsDropdown } from './components/SettingsDropdown.svelt
 export { default as LayoutSelector } from './components/LayoutSelector.svelte';
 
 // Stores
-export * from './stores/mapqlStore.js';
+export * from './stores/transformerStore.js';
 export * from './stores/settingsStore.js';
 
 // Language
-export * from './language/mapqlLanguage.js';
+export * from './language/transformerLanguage.js';

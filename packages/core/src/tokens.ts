@@ -28,50 +28,50 @@ export enum TokenType {
   NOT = 'NOT',
 
   // Operators
-  PLUS = 'PLUS',           // +
-  MINUS = 'MINUS',         // -
-  STAR = 'STAR',           // *
-  SLASH = 'SLASH',         // /
-  PERCENT = 'PERCENT',     // %
+  PLUS = 'PLUS', // +
+  MINUS = 'MINUS', // -
+  STAR = 'STAR', // *
+  SLASH = 'SLASH', // /
+  PERCENT = 'PERCENT', // %
   AMPERSAND = 'AMPERSAND', // & (string concat)
 
-  ASSIGN = 'ASSIGN',       // =
-  EQ = 'EQ',               // ==
-  NEQ = 'NEQ',             // !=
+  ASSIGN = 'ASSIGN', // =
+  EQ = 'EQ', // ==
+  NEQ = 'NEQ', // !=
   STRICT_EQ = 'STRICT_EQ', // ===
   STRICT_NEQ = 'STRICT_NEQ', // !==
-  LT = 'LT',               // <
-  GT = 'GT',               // >
-  LTE = 'LTE',             // <=
-  GTE = 'GTE',             // >=
+  LT = 'LT', // <
+  GT = 'GT', // >
+  LTE = 'LTE', // <=
+  GTE = 'GTE', // >=
 
-  AND_AND = 'AND_AND',     // &&
-  OR_OR = 'OR_OR',         // ||
-  BANG = 'BANG',           // !
-  QUESTION = 'QUESTION',   // ?
-  COLON = 'COLON',         // :
+  AND_AND = 'AND_AND', // &&
+  OR_OR = 'OR_OR', // ||
+  BANG = 'BANG', // !
+  QUESTION = 'QUESTION', // ?
+  COLON = 'COLON', // :
   QUESTION_QUESTION = 'QUESTION_QUESTION', // ??
   QUESTION_DOT = 'QUESTION_DOT', // ?.
   QUESTION_BRACKET = 'QUESTION_BRACKET', // ?[
 
-  PIPE = 'PIPE',           // |
-  ARROW = 'ARROW',         // =>
-  SPREAD = 'SPREAD',       // ...
+  PIPE = 'PIPE', // |
+  ARROW = 'ARROW', // =>
+  SPREAD = 'SPREAD', // ...
 
   // Punctuation
-  DOT = 'DOT',             // .
-  COMMA = 'COMMA',         // ,
+  DOT = 'DOT', // .
+  COMMA = 'COMMA', // ,
   SEMICOLON = 'SEMICOLON', // ;
-  LPAREN = 'LPAREN',       // (
-  RPAREN = 'RPAREN',       // )
-  LBRACKET = 'LBRACKET',   // [
-  RBRACKET = 'RBRACKET',   // ]
-  LBRACE = 'LBRACE',       // {
-  RBRACE = 'RBRACE',       // }
+  LPAREN = 'LPAREN', // (
+  RPAREN = 'RPAREN', // )
+  LBRACKET = 'LBRACKET', // [
+  RBRACKET = 'RBRACKET', // ]
+  LBRACE = 'LBRACE', // {
+  RBRACE = 'RBRACE', // }
 
   // Context markers
-  DOLLAR = 'DOLLAR',       // $ (root)
-  CARET = 'CARET',         // ^ (parent)
+  DOLLAR = 'DOLLAR', // $ (root)
+  CARET = 'CARET', // ^ (parent)
   DOLLAR_DOLLAR = 'DOLLAR_DOLLAR', // $$ (bindings)
 
   // Special
@@ -95,17 +95,17 @@ export interface Position {
 }
 
 export const KEYWORDS: Record<string, TokenType> = {
-  'let': TokenType.LET,
-  'const': TokenType.CONST,
-  'if': TokenType.IF,
-  'else': TokenType.ELSE,
-  'true': TokenType.TRUE,
-  'false': TokenType.FALSE,
-  'null': TokenType.NULL,
-  'undefined': TokenType.UNDEFINED,
-  'as': TokenType.AS,
-  'in': TokenType.IN,
-  'and': TokenType.AND,
-  'or': TokenType.OR,
-  'not': TokenType.NOT,
+  let: TokenType.LET,
+  const: TokenType.CONST,
+  if: TokenType.IF,
+  else: TokenType.ELSE,
+  true: TokenType.TRUE,
+  false: TokenType.FALSE,
+  null: TokenType.NULL,
+  undefined: TokenType.UNDEFINED,
+  as: TokenType.AS,
+  in: TokenType.IN,
+  and: TokenType.AND,
+  or: TokenType.OR,
+  not: TokenType.NOT,
 };

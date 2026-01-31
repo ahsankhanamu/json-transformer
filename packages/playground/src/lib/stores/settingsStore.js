@@ -8,54 +8,54 @@ export const themes = {
   light: {
     name: 'Light',
     colors: {
-      'bg': '#f5f6fa',
+      bg: '#f5f6fa',
       'bg-secondary': '#ffffff',
       'bg-tertiary': '#f3f4f6',
-      'text': '#1f2937',
+      text: '#1f2937',
       'text-secondary': '#4b5563',
       'text-muted': '#9ca3af',
-      'border': '#e5e7eb',
-      'accent': '#3b82f6',
+      border: '#e5e7eb',
+      accent: '#3b82f6',
       'accent-hover': '#2563eb',
-      'success': '#22c55e',
-      'error': '#ef4444',
-      'warning': '#f59e0b',
-    }
+      success: '#22c55e',
+      error: '#ef4444',
+      warning: '#f59e0b',
+    },
   },
   dark: {
     name: 'Dark',
     colors: {
-      'bg': '#121218',
+      bg: '#121218',
       'bg-secondary': '#1c1c24',
       'bg-tertiary': '#2e2e3a',
-      'text': '#f0f0f5',
+      text: '#f0f0f5',
       'text-secondary': '#b8b8c5',
       'text-muted': '#606078',
-      'border': '#363645',
-      'accent': '#5b9fff',
+      border: '#363645',
+      accent: '#5b9fff',
       'accent-hover': '#7bb3ff',
-      'success': '#50e080',
-      'error': '#ff7b7b',
-      'warning': '#ffb938',
-    }
+      success: '#50e080',
+      error: '#ff7b7b',
+      warning: '#ffb938',
+    },
   },
   midnight: {
     name: 'Midnight Blue',
     colors: {
-      'bg': '#0a1628',
+      bg: '#0a1628',
       'bg-secondary': '#132039',
       'bg-tertiary': '#243b5c',
-      'text': '#e2e8f0',
+      text: '#e2e8f0',
       'text-secondary': '#a8c0e0',
       'text-muted': '#5a7aa0',
-      'border': '#1e3a5f',
-      'accent': '#22d3ee',
+      border: '#1e3a5f',
+      accent: '#22d3ee',
       'accent-hover': '#67e8f9',
-      'success': '#4ade80',
-      'error': '#fb7185',
-      'warning': '#fb923c',
-    }
-  }
+      success: '#4ade80',
+      error: '#fb7185',
+      warning: '#fb923c',
+    },
+  },
 };
 
 /**
@@ -65,18 +65,18 @@ export const layouts = {
   standard: {
     name: 'Standard',
     description: 'Input & Preview side by side, Expression below',
-    icon: 'standard'
+    icon: 'standard',
   },
   stacked: {
     name: 'Stacked',
     description: 'All panels vertical',
-    icon: 'stacked'
+    icon: 'stacked',
   },
   sidepanel: {
     name: 'Side Panel',
     description: 'Input & Expression left, Preview right',
-    icon: 'sidepanel'
-  }
+    icon: 'sidepanel',
+  },
 };
 
 // Direction for horizontal layouts (LTR/RTL)
@@ -99,14 +99,14 @@ function createDirectionStore() {
       }
     },
     toggle: () => {
-      update(current => {
+      update((current) => {
         const newDir = current === 'ltr' ? 'rtl' : 'ltr';
         if (browser) {
           localStorage.setItem('mapql-direction', newDir);
         }
         return newDir;
       });
-    }
+    },
   };
 }
 
@@ -168,7 +168,7 @@ function createThemeStore() {
         set(theme);
         applyTheme(theme);
       }
-    }
+    },
   };
 }
 
@@ -186,7 +186,7 @@ function createLayoutStore() {
           localStorage.setItem('mapql-layout', layoutName);
         }
       }
-    }
+    },
   };
 }
 
@@ -196,12 +196,12 @@ export const currentLayout = createLayoutStore();
 // Derived stores for convenience
 export const themeInfo = derived(currentTheme, ($theme) => ({
   id: $theme,
-  ...themes[$theme]
+  ...themes[$theme],
 }));
 
 export const layoutInfo = derived(currentLayout, ($layout) => ({
   id: $layout,
-  ...layouts[$layout]
+  ...layouts[$layout],
 }));
 
 export function getAvailableThemes() {

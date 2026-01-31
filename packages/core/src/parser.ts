@@ -97,7 +97,7 @@ export class Parser {
 
   // Ternary: condition ? then : else
   private parseTernary(): AST.Expression {
-    let test = this.parseLogicalOr();
+    const test = this.parseLogicalOr();
 
     if (this.match(TokenType.QUESTION)) {
       const consequent = this.parseExpression();
@@ -119,7 +119,7 @@ export class Parser {
     let left = this.parseLogicalAnd();
 
     while (this.match(TokenType.OR_OR) || this.match(TokenType.OR)) {
-      const operator = this.previous().value;
+      const _operator = this.previous().value;
       const right = this.parseLogicalAnd();
       left = { type: 'BinaryExpression', operator: '||', left, right };
     }
@@ -132,7 +132,7 @@ export class Parser {
     let left = this.parseEquality();
 
     while (this.match(TokenType.AND_AND) || this.match(TokenType.AND)) {
-      const operator = this.previous().value;
+      const _operator = this.previous().value;
       const right = this.parseEquality();
       left = { type: 'BinaryExpression', operator: '&&', left, right };
     }
@@ -457,7 +457,7 @@ export class Parser {
 
         // Find matching closing brace
         let braceDepth = 1;
-        let exprStart = i + 2;
+        const exprStart = i + 2;
         let j = exprStart;
 
         while (j < raw.length && braceDepth > 0) {
@@ -668,7 +668,7 @@ export class Parser {
   // ===========================================================================
 
   private parseTypeAnnotation(): AST.TypeAnnotation {
-    let type = this.parsePrimaryType();
+    const type = this.parsePrimaryType();
 
     // Union type: string | number
     if (this.check(TokenType.PIPE)) {

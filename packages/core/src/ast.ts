@@ -257,12 +257,7 @@ export interface Program extends BaseNode {
 // TYPE ANNOTATIONS (for strict mode)
 // ============================================================================
 
-export type TypeAnnotation =
-  | PrimitiveType
-  | ArrayType
-  | ObjectType
-  | UnionType
-  | TypeReference;
+export type TypeAnnotation = PrimitiveType | ArrayType | ObjectType | UnionType | TypeReference;
 
 export interface PrimitiveType extends BaseNode {
   type: 'PrimitiveType';
@@ -320,11 +315,7 @@ export type Literal =
   | UndefinedLiteral
   | TemplateLiteral;
 
-export type ContextAccessNode =
-  | RootAccess
-  | ParentAccess
-  | CurrentAccess
-  | BindingAccess;
+export type ContextAccessNode = RootAccess | ParentAccess | CurrentAccess | BindingAccess;
 
 export type Expression =
   | Literal

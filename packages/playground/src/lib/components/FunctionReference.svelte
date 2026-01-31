@@ -1,17 +1,19 @@
 <script>
-  import { functions, getCategories, filterFunctions } from '$lib/language/mapqlLanguage.js';
+  import { getCategories, filterFunctions } from '$lib/language/transformerLanguage.js';
 
-  let { onInsert = () => {} } = $props();
+  const { onInsert = () => {} } = $props();
 
   let search = $state('');
   let selectedCategory = $state('All');
 
   const categories = getCategories();
 
-  let filteredFunctions = $derived(filterFunctions(selectedCategory, search));
+  const filteredFunctions = $derived(filterFunctions(selectedCategory, search));
 </script>
 
-<div class="h-full flex flex-col bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)]">
+<div
+  class="h-full flex flex-col bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)]"
+>
   <!-- Search + Category dropdown -->
   <div class="p-2 border-b border-[var(--color-border)] space-y-1.5 bg-[var(--color-bg)]">
     <input
@@ -40,25 +42,33 @@
           <span class="text-sm font-mono text-[var(--color-accent)]">{fn.name}</span>
           <span class="text-xs text-[var(--color-text-muted)]">{fn.desc}</span>
         </div>
-        <div class="text-xs text-[var(--color-text-muted)] font-mono mt-0.5 opacity-60 group-hover:opacity-100">
+        <div
+          class="text-xs text-[var(--color-text-muted)] font-mono mt-0.5 opacity-60 group-hover:opacity-100"
+        >
           {fn.syntax}
         </div>
       </button>
     {/each}
 
     {#if filteredFunctions.length === 0}
-      <div class="text-center text-[var(--color-text-muted)] text-sm py-8">
-        No functions found
-      </div>
+      <div class="text-center text-[var(--color-text-muted)] text-sm py-8">No functions found</div>
     {/if}
   </div>
 
   <!-- Syntax hints -->
-  <div class="p-2 border-t border-[var(--color-border)] text-xs text-[var(--color-text-muted)] bg-[var(--color-bg)]">
+  <div
+    class="p-2 border-t border-[var(--color-border)] text-xs text-[var(--color-text-muted)] bg-[var(--color-bg)]"
+  >
     <div class="font-semibold mb-1 text-[var(--color-text-secondary)]">Array Access</div>
     <div class="font-mono space-y-0.5">
-      <div><span class="text-[var(--color-accent)]">[0]</span> first, <span class="text-[var(--color-accent)]">[-1]</span> last</div>
-      <div><span class="text-[var(--color-accent)]">[*]</span> spread, <span class="text-[var(--color-accent)]">[? x]</span> filter</div>
+      <div>
+        <span class="text-[var(--color-accent)]">[0]</span> first,
+        <span class="text-[var(--color-accent)]">[-1]</span> last
+      </div>
+      <div>
+        <span class="text-[var(--color-accent)]">[*]</span> spread,
+        <span class="text-[var(--color-accent)]">[? x]</span> filter
+      </div>
     </div>
   </div>
 </div>

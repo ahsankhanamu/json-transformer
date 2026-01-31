@@ -1,17 +1,44 @@
 {
-  "name": "mapql-monorepo",
+  "name": "json-transformer-monorepo",
   "private": true,
-  "workspaces": ["packages/*"],
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "npm run build -w @ahsankhanamu/json-transformer",
     "build:all": "npm run build -w @ahsankhanamu/json-transformer && npm run build -w json-transformer-playground && npm run build -w json-transformer-docs",
     "dev": "npm run dev -w json-transformer-playground",
     "dev:docs": "npm run dev -w json-transformer-docs",
     "test": "npm run test -w @ahsankhanamu/json-transformer",
-    "clean": "rm -rf packages/*/dist packages/*/.svelte-kit"
+    "lint": "eslint packages/core/src packages/playground/src",
+    "lint:fix": "eslint packages/core/src packages/playground/src --fix",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,js,svelte,css,json}\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.{ts,js,svelte,css,json}\"",
+    "clean": "rm -rf packages/*/dist packages/*/.svelte-kit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,js,svelte}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.14.0",
+    "globals": "^17.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.4.1",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.54.0"
   },
   "engines": {
     "node": ">=18"

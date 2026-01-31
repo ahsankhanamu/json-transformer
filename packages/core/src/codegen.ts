@@ -555,7 +555,7 @@ export class CodeGenerator {
     const left = this.generateExpression(node.left);
     const right = this.generateExpression(node.right);
 
-    let op = node.operator;
+    const op = node.operator;
 
     // Handle string concatenation with &
     if (op === '&') {
@@ -607,9 +607,10 @@ export class CodeGenerator {
     if (node.right.type === 'CallExpression') {
       // Insert left as first argument
       // If callee is an identifier, use its name directly for helper lookup
-      const callee = node.right.callee.type === 'Identifier'
-        ? node.right.callee.name
-        : this.generateExpression(node.right.callee);
+      const callee =
+        node.right.callee.type === 'Identifier'
+          ? node.right.callee.name
+          : this.generateExpression(node.right.callee);
       const args = node.right.arguments.map((a) => this.generateExpression(a));
 
       // In native mode, try to generate native JS
@@ -636,26 +637,35 @@ export class CodeGenerator {
    * Generate native JS code for a helper function call
    * Returns null if no native equivalent available
    */
-  private generateNativeHelperCall(funcName: string, args: string[], keyPath?: string): string | null {
+  private generateNativeHelperCall(
+    funcName: string,
+    args: string[],
+    keyPath?: string
+  ): string | null {
     // String functions
     if (funcName === 'upper') return `String(${args[0]} ?? '').toUpperCase()`;
     if (funcName === 'lower') return `String(${args[0]} ?? '').toLowerCase()`;
     if (funcName === 'trim') return `String(${args[0]} ?? '').trim()`;
     if (funcName === 'split') return `String(${args[0]} ?? '').split(${args[1] ?? '","'})`;
     if (funcName === 'join') return `(${args[0]} ?? []).join(${args[1] ?? '","'})`;
-    if (funcName === 'substring') return `String(${args[0]} ?? '').substring(${args.slice(1).join(', ')})`;
+    if (funcName === 'substring')
+      return `String(${args[0]} ?? '').substring(${args.slice(1).join(', ')})`;
     if (funcName === 'replace') return `String(${args[0]} ?? '').replace(${args[1]}, ${args[2]})`;
-    if (funcName === 'replaceAll') return `String(${args[0]} ?? '').replaceAll(${args[1]}, ${args[2]})`;
+    if (funcName === 'replaceAll')
+      return `String(${args[0]} ?? '').replaceAll(${args[1]}, ${args[2]})`;
     if (funcName === 'startsWith') return `String(${args[0]} ?? '').startsWith(${args[1]})`;
     if (funcName === 'endsWith') return `String(${args[0]} ?? '').endsWith(${args[1]})`;
     if (funcName === 'contains') return `String(${args[0]} ?? '').includes(${args[1]})`;
-    if (funcName === 'padStart') return `String(${args[0]} ?? '').padStart(${args.slice(1).join(', ')})`;
-    if (funcName === 'padEnd') return `String(${args[0]} ?? '').padEnd(${args.slice(1).join(', ')})`;
+    if (funcName === 'padStart')
+      return `String(${args[0]} ?? '').padStart(${args.slice(1).join(', ')})`;
+    if (funcName === 'padEnd')
+      return `String(${args[0]} ?? '').padEnd(${args.slice(1).join(', ')})`;
 
     // Math functions
-    if (funcName === 'round') return args.length > 1
-      ? `(Math.round(Number(${args[0]}) * Math.pow(10, ${args[1]})) / Math.pow(10, ${args[1]}))`
-      : `Math.round(Number(${args[0]}))`;
+    if (funcName === 'round')
+      return args.length > 1
+        ? `(Math.round(Number(${args[0]}) * Math.pow(10, ${args[1]})) / Math.pow(10, ${args[1]}))`
+        : `Math.round(Number(${args[0]}))`;
     if (funcName === 'floor') return `Math.floor(Number(${args[0]}))`;
     if (funcName === 'ceil') return `Math.ceil(Number(${args[0]}))`;
     if (funcName === 'abs') return `Math.abs(Number(${args[0]}))`;
@@ -673,39 +683,44 @@ export class CodeGenerator {
     if (funcName === 'take') return `(${args[0]} ?? []).slice(0, ${args[1]})`;
     if (funcName === 'drop') return `(${args[0]} ?? []).slice(${args[1]})`;
     if (funcName === 'sum') return `(${args[0]} ?? []).reduce((a, b) => a + Number(b || 0), 0)`;
-    if (funcName === 'avg') return `((arr) => arr.length ? arr.reduce((a, b) => a + Number(b || 0), 0) / arr.length : 0)(${args[0]} ?? [])`;
+    if (funcName === 'avg')
+      return `((arr) => arr.length ? arr.reduce((a, b) => a + Number(b || 0), 0) / arr.length : 0)(${args[0]} ?? [])`;
 
     // Sort with key path
     if (funcName === 'sort' && keyPath) {
       const pathParts = keyPath.split('.');
-      const getValue = pathParts.length === 1
-        ? `item?.${keyPath}`
-        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      const getValue =
+        pathParts.length === 1
+          ? `item?.${keyPath}`
+          : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
       return `[...(${args[0]} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : aVal < bVal ? -1 : aVal > bVal ? 1 : 0; })`;
     }
     if (funcName === 'sortDesc' && keyPath) {
       const pathParts = keyPath.split('.');
-      const getValue = pathParts.length === 1
-        ? `item?.${keyPath}`
-        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      const getValue =
+        pathParts.length === 1
+          ? `item?.${keyPath}`
+          : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
       return `[...(${args[0]} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : bVal < aVal ? -1 : bVal > aVal ? 1 : 0; })`;
     }
 
     // GroupBy with key path
     if (funcName === 'groupBy' && keyPath) {
       const pathParts = keyPath.split('.');
-      const getValue = pathParts.length === 1
-        ? `item?.${keyPath}`
-        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      const getValue =
+        pathParts.length === 1
+          ? `item?.${keyPath}`
+          : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
       return `(${args[0]} ?? []).reduce((acc, item) => { const key = String(${getValue}); (acc[key] = acc[key] || []).push(item); return acc; }, {})`;
     }
 
     // KeyBy with key path
     if (funcName === 'keyBy' && keyPath) {
       const pathParts = keyPath.split('.');
-      const getValue = pathParts.length === 1
-        ? `item?.${keyPath}`
-        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      const getValue =
+        pathParts.length === 1
+          ? `item?.${keyPath}`
+          : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
       return `(${args[0]} ?? []).reduce((acc, item) => { acc[String(${getValue})] = item; return acc; }, {})`;
     }
 
@@ -716,21 +731,26 @@ export class CodeGenerator {
     if (funcName === 'merge') return `Object.assign({}, ${args.join(', ')})`;
 
     // Type functions
-    if (funcName === 'type') return `(v => v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)(${args[0]})`;
+    if (funcName === 'type')
+      return `(v => v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)(${args[0]})`;
     if (funcName === 'isString') return `typeof ${args[0]} === 'string'`;
     if (funcName === 'isNumber') return `typeof ${args[0]} === 'number' && !isNaN(${args[0]})`;
     if (funcName === 'isBoolean') return `typeof ${args[0]} === 'boolean'`;
     if (funcName === 'isArray') return `Array.isArray(${args[0]})`;
-    if (funcName === 'isObject') return `${args[0]} !== null && typeof ${args[0]} === 'object' && !Array.isArray(${args[0]})`;
+    if (funcName === 'isObject')
+      return `${args[0]} !== null && typeof ${args[0]} === 'object' && !Array.isArray(${args[0]})`;
     if (funcName === 'isNull') return `${args[0]} === null`;
     if (funcName === 'isUndefined') return `${args[0]} === undefined`;
-    if (funcName === 'isEmpty') return `((v) => v == null || (typeof v === 'string' && v.length === 0) || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && Object.keys(v).length === 0))(${args[0]})`;
+    if (funcName === 'isEmpty')
+      return `((v) => v == null || (typeof v === 'string' && v.length === 0) || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && Object.keys(v).length === 0))(${args[0]})`;
 
     // Conversion functions
-    if (funcName === 'toString') return `(${args[0]} == null ? '' : typeof ${args[0]} === 'object' ? JSON.stringify(${args[0]}) : String(${args[0]}))`;
+    if (funcName === 'toString')
+      return `(${args[0]} == null ? '' : typeof ${args[0]} === 'object' ? JSON.stringify(${args[0]}) : String(${args[0]}))`;
     if (funcName === 'toNumber') return `Number(${args[0]}) || 0`;
     if (funcName === 'toBoolean') return `Boolean(${args[0]})`;
-    if (funcName === 'toArray') return `(${args[0]} == null ? [] : Array.isArray(${args[0]}) ? ${args[0]} : [${args[0]}])`;
+    if (funcName === 'toArray')
+      return `(${args[0]} == null ? [] : Array.isArray(${args[0]}) ? ${args[0]} : [${args[0]}])`;
     if (funcName === 'toJSON') return `JSON.stringify(${args[0]})`;
     if (funcName === 'fromJSON') return `JSON.parse(${args[0]})`;
 
@@ -745,9 +765,10 @@ export class CodeGenerator {
    */
   private generateNativeArrayMethod(array: string, method: string, keyPath: string): string {
     const pathParts = keyPath.split('.');
-    const getValue = pathParts.length === 1
-      ? `item?.${keyPath}`
-      : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+    const getValue =
+      pathParts.length === 1
+        ? `item?.${keyPath}`
+        : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
 
     if (method === 'sort') {
       return `[...(${array} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : aVal < bVal ? -1 : aVal > bVal ? 1 : 0; })`;
@@ -869,9 +890,7 @@ export class CodeGenerator {
       }
     }
 
-    const alternate = node.alternate
-      ? this.generateExpression(node.alternate)
-      : 'undefined';
+    const alternate = node.alternate ? this.generateExpression(node.alternate) : 'undefined';
 
     result += ` : ${alternate}`;
     result += ')'.repeat(node.conditions.length);

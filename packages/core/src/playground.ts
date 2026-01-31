@@ -23,7 +23,7 @@ const testData = {
   orders: [
     { id: 1, product: 'Widget', price: 25.99, quantity: 2, status: 'shipped' },
     { id: 2, product: 'Gadget', price: 49.99, quantity: 1, status: 'pending' },
-    { id: 3, product: 'Gizmo', price: 15.00, quantity: 5, status: 'shipped' },
+    { id: 3, product: 'Gizmo', price: 15.0, quantity: 5, status: 'shipped' },
   ],
   tags: ['electronics', 'sale', 'featured'],
   metadata: {
@@ -177,8 +177,12 @@ const evalTime = performance.now() - start2;
 
 console.log(`Expression: ${perfExpr}`);
 console.log(`Iterations: ${iterations}`);
-console.log(`Compiled execution: ${compiledTime.toFixed(2)}ms (${(iterations / compiledTime * 1000).toFixed(0)} ops/sec)`);
-console.log(`With caching: ${evalTime.toFixed(2)}ms (${(iterations / evalTime * 1000).toFixed(0)} ops/sec)`);
+console.log(
+  `Compiled execution: ${compiledTime.toFixed(2)}ms (${((iterations / compiledTime) * 1000).toFixed(0)} ops/sec)`
+);
+console.log(
+  `With caching: ${evalTime.toFixed(2)}ms (${((iterations / evalTime) * 1000).toFixed(0)} ops/sec)`
+);
 console.log();
 
 // =============================================================================
@@ -197,7 +201,7 @@ const strictTests = [
   },
   {
     name: 'Typo in property name (suggests similar)',
-    expr: 'user.adress',  // Should suggest 'address'
+    expr: 'user.adress', // Should suggest 'address'
   },
   {
     name: 'Null access',

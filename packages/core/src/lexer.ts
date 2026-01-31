@@ -110,27 +110,90 @@ export class Lexer {
 
     // Single character tokens
     switch (char) {
-      case '+': this.advance(); this.addToken(TokenType.PLUS, '+', start, startLine, startColumn); return;
-      case '-': this.advance(); this.addToken(TokenType.MINUS, '-', start, startLine, startColumn); return;
-      case '*': this.advance(); this.addToken(TokenType.STAR, '*', start, startLine, startColumn); return;
-      case '/': this.advance(); this.addToken(TokenType.SLASH, '/', start, startLine, startColumn); return;
-      case '%': this.advance(); this.addToken(TokenType.PERCENT, '%', start, startLine, startColumn); return;
-      case '&': this.advance(); this.addToken(TokenType.AMPERSAND, '&', start, startLine, startColumn); return;
-      case '<': this.advance(); this.addToken(TokenType.LT, '<', start, startLine, startColumn); return;
-      case '>': this.advance(); this.addToken(TokenType.GT, '>', start, startLine, startColumn); return;
-      case '!': this.advance(); this.addToken(TokenType.BANG, '!', start, startLine, startColumn); return;
-      case '?': this.advance(); this.addToken(TokenType.QUESTION, '?', start, startLine, startColumn); return;
-      case ':': this.advance(); this.addToken(TokenType.COLON, ':', start, startLine, startColumn); return;
-      case '|': this.advance(); this.addToken(TokenType.PIPE, '|', start, startLine, startColumn); return;
-      case '.': this.advance(); this.addToken(TokenType.DOT, '.', start, startLine, startColumn); return;
-      case ',': this.advance(); this.addToken(TokenType.COMMA, ',', start, startLine, startColumn); return;
-      case ';': this.advance(); this.addToken(TokenType.SEMICOLON, ';', start, startLine, startColumn); return;
-      case '(': this.advance(); this.addToken(TokenType.LPAREN, '(', start, startLine, startColumn); return;
-      case ')': this.advance(); this.addToken(TokenType.RPAREN, ')', start, startLine, startColumn); return;
-      case '[': this.advance(); this.addToken(TokenType.LBRACKET, '[', start, startLine, startColumn); return;
-      case ']': this.advance(); this.addToken(TokenType.RBRACKET, ']', start, startLine, startColumn); return;
-      case '{': this.advance(); this.addToken(TokenType.LBRACE, '{', start, startLine, startColumn); return;
-      case '}': this.advance(); this.addToken(TokenType.RBRACE, '}', start, startLine, startColumn); return;
+      case '+':
+        this.advance();
+        this.addToken(TokenType.PLUS, '+', start, startLine, startColumn);
+        return;
+      case '-':
+        this.advance();
+        this.addToken(TokenType.MINUS, '-', start, startLine, startColumn);
+        return;
+      case '*':
+        this.advance();
+        this.addToken(TokenType.STAR, '*', start, startLine, startColumn);
+        return;
+      case '/':
+        this.advance();
+        this.addToken(TokenType.SLASH, '/', start, startLine, startColumn);
+        return;
+      case '%':
+        this.advance();
+        this.addToken(TokenType.PERCENT, '%', start, startLine, startColumn);
+        return;
+      case '&':
+        this.advance();
+        this.addToken(TokenType.AMPERSAND, '&', start, startLine, startColumn);
+        return;
+      case '<':
+        this.advance();
+        this.addToken(TokenType.LT, '<', start, startLine, startColumn);
+        return;
+      case '>':
+        this.advance();
+        this.addToken(TokenType.GT, '>', start, startLine, startColumn);
+        return;
+      case '!':
+        this.advance();
+        this.addToken(TokenType.BANG, '!', start, startLine, startColumn);
+        return;
+      case '?':
+        this.advance();
+        this.addToken(TokenType.QUESTION, '?', start, startLine, startColumn);
+        return;
+      case ':':
+        this.advance();
+        this.addToken(TokenType.COLON, ':', start, startLine, startColumn);
+        return;
+      case '|':
+        this.advance();
+        this.addToken(TokenType.PIPE, '|', start, startLine, startColumn);
+        return;
+      case '.':
+        this.advance();
+        this.addToken(TokenType.DOT, '.', start, startLine, startColumn);
+        return;
+      case ',':
+        this.advance();
+        this.addToken(TokenType.COMMA, ',', start, startLine, startColumn);
+        return;
+      case ';':
+        this.advance();
+        this.addToken(TokenType.SEMICOLON, ';', start, startLine, startColumn);
+        return;
+      case '(':
+        this.advance();
+        this.addToken(TokenType.LPAREN, '(', start, startLine, startColumn);
+        return;
+      case ')':
+        this.advance();
+        this.addToken(TokenType.RPAREN, ')', start, startLine, startColumn);
+        return;
+      case '[':
+        this.advance();
+        this.addToken(TokenType.LBRACKET, '[', start, startLine, startColumn);
+        return;
+      case ']':
+        this.advance();
+        this.addToken(TokenType.RBRACKET, ']', start, startLine, startColumn);
+        return;
+      case '{':
+        this.advance();
+        this.addToken(TokenType.LBRACE, '{', start, startLine, startColumn);
+        return;
+      case '}':
+        this.advance();
+        this.addToken(TokenType.RBRACE, '}', start, startLine, startColumn);
+        return;
       case '$':
         // Check if this is a context variable like $index, $item, etc.
         if (this.isIdentifierStart(this.peekNext()) || this.peekNext() === '$') {
@@ -140,7 +203,10 @@ export class Lexer {
         this.advance();
         this.addToken(TokenType.DOLLAR, '$', start, startLine, startColumn);
         return;
-      case '^': this.advance(); this.addToken(TokenType.CARET, '^', start, startLine, startColumn); return;
+      case '^':
+        this.advance();
+        this.addToken(TokenType.CARET, '^', start, startLine, startColumn);
+        return;
     }
 
     // Strings
@@ -184,14 +250,30 @@ export class Lexer {
         if (this.isAtEnd()) break;
         const escaped = this.advance();
         switch (escaped) {
-          case 'n': value += '\n'; break;
-          case 'r': value += '\r'; break;
-          case 't': value += '\t'; break;
-          case 'b': value += '\b'; break;
-          case 'f': value += '\f'; break;
-          case '\\': value += '\\'; break;
-          case '"': value += '"'; break;
-          case "'": value += "'"; break;
+          case 'n':
+            value += '\n';
+            break;
+          case 'r':
+            value += '\r';
+            break;
+          case 't':
+            value += '\t';
+            break;
+          case 'b':
+            value += '\b';
+            break;
+          case 'f':
+            value += '\f';
+            break;
+          case '\\':
+            value += '\\';
+            break;
+          case '"':
+            value += '"';
+            break;
+          case "'":
+            value += "'";
+            break;
           case 'u': {
             const hex = this.input.slice(this.pos, this.pos + 4);
             if (/^[0-9a-fA-F]{4}$/.test(hex)) {
@@ -203,7 +285,8 @@ export class Lexer {
             }
             break;
           }
-          default: value += escaped;
+          default:
+            value += escaped;
         }
       } else {
         if (this.peek() === '\n') {
@@ -229,11 +312,11 @@ export class Lexer {
 
     this.advance(); // consume opening backtick
     let value = '';
-    let hasInterpolation = false;
+    let _hasInterpolation = false;
 
     while (!this.isAtEnd() && this.peek() !== '`') {
       if (this.peek() === '$' && this.peekNext() === '{') {
-        hasInterpolation = true;
+        _hasInterpolation = true;
         // For now, just include interpolation as-is
         // Full implementation would tokenize the contents
         value += this.advance(); // $
@@ -250,13 +333,26 @@ export class Lexer {
         if (!this.isAtEnd()) {
           const escaped = this.advance();
           switch (escaped) {
-            case 'n': value += '\n'; break;
-            case 'r': value += '\r'; break;
-            case 't': value += '\t'; break;
-            case '`': value += '`'; break;
-            case '\\': value += '\\'; break;
-            case '$': value += '$'; break;
-            default: value += '\\' + escaped;
+            case 'n':
+              value += '\n';
+              break;
+            case 'r':
+              value += '\r';
+              break;
+            case 't':
+              value += '\t';
+              break;
+            case '`':
+              value += '`';
+              break;
+            case '\\':
+              value += '\\';
+              break;
+            case '$':
+              value += '$';
+              break;
+            default:
+              value += '\\' + escaped;
           }
         }
       } else {
@@ -397,10 +493,9 @@ export class Lexer {
   }
 
   private isIdentifierStart(char: string): boolean {
-    return (char >= 'a' && char <= 'z') ||
-           (char >= 'A' && char <= 'Z') ||
-           char === '_' ||
-           char === '$';
+    return (
+      (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char === '_' || char === '$'
+    );
   }
 
   private isIdentifierPart(char: string): boolean {
@@ -418,7 +513,13 @@ export class Lexer {
     };
   }
 
-  private addToken(type: TokenType, value: string, start: number, line: number, column: number): void {
+  private addToken(
+    type: TokenType,
+    value: string,
+    start: number,
+    line: number,
+    column: number
+  ): void {
     this.tokens.push({
       type,
       value,

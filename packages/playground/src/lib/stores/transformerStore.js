@@ -1,7 +1,7 @@
 import { writable, derived } from 'svelte/store';
 
-// MapQL module reference
-let mapqlModule = null;
+// JSON Transformer module reference
+let transformerModule = null;
 
 // Core stores
 export const inputJson = writable(`{
@@ -26,16 +26,16 @@ export const inputJson = writable(`{
 export const expression = writable('user.firstName & " " & user.lastName');
 export const strictMode = writable(false);
 export const activeTab = writable('preview');
-export const mapqlLoaded = writable(false);
+export const transformerLoaded = writable(false);
 
-// Initialize MapQL
-export async function initMapQL() {
+// Initialize JSON Transformer
+export async function initTransformer() {
   try {
-    mapqlModule = await import('@ahsankhanamu/json-transformer');
-    mapqlLoaded.set(true);
+    transformerModule = await import('@ahsankhanamu/json-transformer');
+    transformerLoaded.set(true);
     return true;
   } catch (e) {
-    console.error('Failed to load MapQL:', e);
+    console.error('Failed to load JSON Transformer:', e);
     return false;
   }
 }
@@ -50,13 +50,13 @@ export const parsedInput = derived(inputJson, ($inputJson) => {
 });
 
 export const validationResult = derived(
-  [expression, mapqlLoaded],
-  ([$expression, $mapqlLoaded]) => {
-    if (!$mapqlLoaded || !mapqlModule) {
+  [expression, transformerLoaded],
+  ([$expression, $transformerLoaded]) => {
+    if (!$transformerLoaded || !transformerModule) {
       return { valid: false, error: 'Loading...' };
     }
     try {
-      const error = mapqlModule.validate($expression);
+      const error = transformerModule.validate($expression);
       return error ? { valid: false, error: error.message } : { valid: true };
     } catch (e) {
       return { valid: false, error: e.message };
@@ -65,9 +65,9 @@ export const validationResult = derived(
 );
 
 export const evaluationResult = derived(
-  [expression, parsedInput, validationResult, strictMode, mapqlLoaded],
-  ([$expression, $parsedInput, $validationResult, $strictMode, $mapqlLoaded]) => {
-    if (!$mapqlLoaded || !mapqlModule) {
+  [expression, parsedInput, validationResult, strictMode, transformerLoaded],
+  ([$expression, $parsedInput, $validationResult, $strictMode, $transformerLoaded]) => {
+    if (!$transformerLoaded || !transformerModule) {
       return { success: false, error: 'Loading...' };
     }
     if (!$parsedInput.success) {
@@ -78,7 +78,9 @@ export const evaluationResult = derived(
     }
 
     try {
-      const result = mapqlModule.evaluate($expression, $parsedInput.data, { strict: $strictMode });
+      const result = transformerModule.evaluate($expression, $parsedInput.data, {
+        strict: $strictMode,
+      });
       return { success: true, data: result };
     } catch (e) {
       return { success: false, error: e.message, details: e };
@@ -87,12 +89,12 @@ export const evaluationResult = derived(
 );
 
 export const astResult = derived(
-  [expression, validationResult, mapqlLoaded],
-  ([$expression, $validationResult, $mapqlLoaded]) => {
-    if (!$mapqlLoaded || !mapqlModule) return null;
+  [expression, validationResult, transformerLoaded],
+  ([$expression, $validationResult, $transformerLoaded]) => {
+    if (!$transformerLoaded || !transformerModule) return null;
     if (!$validationResult.valid) return null;
     try {
-      return mapqlModule.parse($expression);
+      return transformerModule.parse($expression);
     } catch {
       return null;
     }
@@ -100,16 +102,16 @@ export const astResult = derived(
 );
 
 export const generatedJs = derived(
-  [expression, validationResult, strictMode, mapqlLoaded],
-  ([$expression, $validationResult, $strictMode, $mapqlLoaded]) => {
-    if (!$mapqlLoaded || !mapqlModule) return '';
+  [expression, validationResult, strictMode, transformerLoaded],
+  ([$expression, $validationResult, $strictMode, $transformerLoaded]) => {
+    if (!$transformerLoaded || !transformerModule) return '';
     if (!$validationResult.valid) return '';
     try {
-      return mapqlModule.toJavaScript($expression, {
+      return transformerModule.toJavaScript($expression, {
         strict: $strictMode,
         pretty: true,
         wrapInFunction: true,
-        functionName: 'transform'
+        functionName: 'transform',
       });
     } catch {
       return '';
@@ -118,17 +120,17 @@ export const generatedJs = derived(
 );
 
 export const nativeJs = derived(
-  [expression, validationResult, strictMode, mapqlLoaded],
-  ([$expression, $validationResult, $strictMode, $mapqlLoaded]) => {
-    if (!$mapqlLoaded || !mapqlModule) return '';
+  [expression, validationResult, strictMode, transformerLoaded],
+  ([$expression, $validationResult, $strictMode, $transformerLoaded]) => {
+    if (!$transformerLoaded || !transformerModule) return '';
     if (!$validationResult.valid) return '';
     try {
-      return mapqlModule.toJavaScript($expression, {
+      return transformerModule.toJavaScript($expression, {
         strict: $strictMode,
         pretty: true,
         wrapInFunction: true,
         functionName: 'transform',
-        native: true
+        native: true,
       });
     } catch {
       return '';

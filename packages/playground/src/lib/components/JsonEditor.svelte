@@ -9,6 +9,7 @@
       value = JSON.stringify(parsed, null, 2);
     } catch (e) {
       // Invalid JSON, can't prettify
+      console.warn('JSON prettify failed:', e);
     }
   }
 </script>
@@ -25,8 +26,8 @@
         disabled={!isValid}
         class="text-xs px-2 py-1 rounded transition-colors normal-case
           {isValid
-            ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]'
-            : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-not-allowed opacity-50'}"
+          ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]'
+          : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-not-allowed opacity-50'}"
         title="Format JSON"
       >
         Prettify

@@ -89,7 +89,7 @@ function levenshteinDistance(a: string, b: string): number {
  */
 function findSimilarKeys(target: string, keys: string[], maxDistance: number = 3): string[] {
   return keys
-    .map(key => ({ key, distance: levenshteinDistance(target.toLowerCase(), key.toLowerCase()) }))
+    .map((key) => ({ key, distance: levenshteinDistance(target.toLowerCase(), key.toLowerCase()) }))
     .filter(({ distance }) => distance <= maxDistance && distance > 0)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, 3)
@@ -109,32 +109,32 @@ function getTypeName(value: unknown): string {
 /**
  * Strict mode: Access a property with validation
  */
-export function strictGet(
-  obj: unknown,
-  property: string,
-  path: string
-): unknown {
+export function strictGet(obj: unknown, property: string, path: string): unknown {
   // Check if object is null/undefined
   if (obj === null) {
-    throw new MapQLError(
-      `Cannot access property '${property}' of null`,
-      { code: 'NULL_ACCESS', path, actual: 'null' }
-    );
+    throw new MapQLError(`Cannot access property '${property}' of null`, {
+      code: 'NULL_ACCESS',
+      path,
+      actual: 'null',
+    });
   }
 
   if (obj === undefined) {
-    throw new MapQLError(
-      `Cannot access property '${property}' of undefined`,
-      { code: 'UNDEFINED_ACCESS', path, actual: 'undefined' }
-    );
+    throw new MapQLError(`Cannot access property '${property}' of undefined`, {
+      code: 'UNDEFINED_ACCESS',
+      path,
+      actual: 'undefined',
+    });
   }
 
   // Check if object is actually an object
   if (typeof obj !== 'object') {
-    throw new MapQLError(
-      `Cannot access property '${property}' of ${getTypeName(obj)}`,
-      { code: 'INVALID_ACCESS', path, expected: 'object', actual: getTypeName(obj) }
-    );
+    throw new MapQLError(`Cannot access property '${property}' of ${getTypeName(obj)}`, {
+      code: 'INVALID_ACCESS',
+      path,
+      expected: 'object',
+      actual: getTypeName(obj),
+    });
   }
 
   const record = obj as Record<string, unknown>;
@@ -160,33 +160,33 @@ export function strictGet(
 /**
  * Strict mode: Access an array index with validation
  */
-export function strictIndex(
-  arr: unknown,
-  index: number,
-  path: string
-): unknown {
+export function strictIndex(arr: unknown, index: number, path: string): unknown {
   if (arr === null || arr === undefined) {
-    throw new MapQLError(
-      `Cannot access index [${index}] of ${getTypeName(arr)}`,
-      { code: 'NULL_INDEX', path, actual: getTypeName(arr) }
-    );
+    throw new MapQLError(`Cannot access index [${index}] of ${getTypeName(arr)}`, {
+      code: 'NULL_INDEX',
+      path,
+      actual: getTypeName(arr),
+    });
   }
 
   if (!Array.isArray(arr)) {
-    throw new MapQLError(
-      `Cannot access index [${index}] - value is not an array`,
-      { code: 'NOT_ARRAY', path, expected: 'array', actual: getTypeName(arr) }
-    );
+    throw new MapQLError(`Cannot access index [${index}] - value is not an array`, {
+      code: 'NOT_ARRAY',
+      path,
+      expected: 'array',
+      actual: getTypeName(arr),
+    });
   }
 
   // Handle negative indices
   const actualIndex = index < 0 ? arr.length + index : index;
 
   if (actualIndex < 0 || actualIndex >= arr.length) {
-    throw new MapQLError(
-      `Array index ${index} is out of bounds (array length: ${arr.length})`,
-      { code: 'INDEX_OUT_OF_BOUNDS', path: `${path}[${index}]`, value: arr.length }
-    );
+    throw new MapQLError(`Array index ${index} is out of bounds (array length: ${arr.length})`, {
+      code: 'INDEX_OUT_OF_BOUNDS',
+      path: `${path}[${index}]`,
+      value: arr.length,
+    });
   }
 
   return arr[actualIndex];
@@ -195,22 +195,23 @@ export function strictIndex(
 /**
  * Strict mode: Ensure value is an array
  */
-export function strictArray(
-  value: unknown,
-  path: string
-): unknown[] {
+export function strictArray(value: unknown, path: string): unknown[] {
   if (value === null || value === undefined) {
-    throw new MapQLError(
-      `Expected array but got ${getTypeName(value)}`,
-      { code: 'NULL_ARRAY', path, expected: 'array', actual: getTypeName(value) }
-    );
+    throw new MapQLError(`Expected array but got ${getTypeName(value)}`, {
+      code: 'NULL_ARRAY',
+      path,
+      expected: 'array',
+      actual: getTypeName(value),
+    });
   }
 
   if (!Array.isArray(value)) {
-    throw new MapQLError(
-      `Expected array but got ${getTypeName(value)}`,
-      { code: 'NOT_ARRAY', path, expected: 'array', actual: getTypeName(value) }
-    );
+    throw new MapQLError(`Expected array but got ${getTypeName(value)}`, {
+      code: 'NOT_ARRAY',
+      path,
+      expected: 'array',
+      actual: getTypeName(value),
+    });
   }
 
   return value;
@@ -219,16 +220,13 @@ export function strictArray(
 /**
  * Strict mode: Validate a value is not null/undefined
  */
-export function strictNonNull<T>(
-  value: T,
-  path: string,
-  message?: string
-): NonNullable<T> {
+export function strictNonNull<T>(value: T, path: string, message?: string): NonNullable<T> {
   if (value === null || value === undefined) {
-    throw new MapQLError(
-      message ?? `Value at '${path}' is ${getTypeName(value)}`,
-      { code: 'NULL_VALUE', path, actual: getTypeName(value) }
-    );
+    throw new MapQLError(message ?? `Value at '${path}' is ${getTypeName(value)}`, {
+      code: 'NULL_VALUE',
+      path,
+      actual: getTypeName(value),
+    });
   }
   return value as NonNullable<T>;
 }
@@ -236,11 +234,7 @@ export function strictNonNull<T>(
 /**
  * Strict mode: Validate type
  */
-export function strictType(
-  value: unknown,
-  expectedType: string,
-  path: string
-): unknown {
+export function strictType(value: unknown, expectedType: string, path: string): unknown {
   const actualType = getTypeName(value);
 
   if (expectedType === 'any') return value;
@@ -415,12 +409,18 @@ export function abs(n: unknown): number {
 }
 
 export function min(...values: unknown[]): number {
-  const nums = values.flat().map(Number).filter((n) => !isNaN(n));
+  const nums = values
+    .flat()
+    .map(Number)
+    .filter((n) => !isNaN(n));
   return nums.length ? Math.min(...nums) : 0;
 }
 
 export function max(...values: unknown[]): number {
-  const nums = values.flat().map(Number).filter((n) => !isNaN(n));
+  const nums = values
+    .flat()
+    .map(Number)
+    .filter((n) => !isNaN(n));
   return nums.length ? Math.max(...nums) : 0;
 }
 
@@ -545,12 +545,15 @@ export function groupBy<T>(arr: T[], key: string | ((item: T) => string)): Recor
     return current;
   };
 
-  return arr.reduce((acc, item) => {
-    const groupKey = typeof key === 'string' ? String(getValue(item, key)) : key(item);
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+  return arr.reduce(
+    (acc, item) => {
+      const groupKey = typeof key === 'string' ? String(getValue(item, key)) : key(item);
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(item);
+      return acc;
+    },
+    {} as Record<string, T[]>
+  );
 }
 
 export function keyBy<T>(arr: T[], key: string | ((item: T) => string)): Record<string, T> {
@@ -567,11 +570,14 @@ export function keyBy<T>(arr: T[], key: string | ((item: T) => string)): Record<
     return current;
   };
 
-  return arr.reduce((acc, item) => {
-    const k = typeof key === 'string' ? String(getValue(item, key)) : key(item);
-    acc[k] = item;
-    return acc;
-  }, {} as Record<string, T>);
+  return arr.reduce(
+    (acc, item) => {
+      const k = typeof key === 'string' ? String(getValue(item, key)) : key(item);
+      acc[k] = item;
+      return acc;
+    },
+    {} as Record<string, T>
+  );
 }
 
 export function zip<A, B>(arr1: A[], arr2: B[]): [A, B][] {
@@ -854,7 +860,11 @@ export function assertNonNull<T>(value: T, message?: string): NonNullable<T> {
   return value as NonNullable<T>;
 }
 
-export function assertType(value: unknown, expectedType: string, nonNull: boolean = false): unknown {
+export function assertType(
+  value: unknown,
+  expectedType: string,
+  nonNull: boolean = false
+): unknown {
   if (nonNull && value == null) {
     throw new MapQLError(`Expected non-null ${expectedType}, got ${value}`, 'NULL_VALUE');
   }
@@ -863,10 +873,7 @@ export function assertType(value: unknown, expectedType: string, nonNull: boolea
 
   const actualType = type(value);
   if (actualType !== expectedType && expectedType !== 'any') {
-    throw new MapQLError(
-      `Expected ${expectedType}, got ${actualType}`,
-      'TYPE_MISMATCH'
-    );
+    throw new MapQLError(`Expected ${expectedType}, got ${actualType}`, 'TYPE_MISMATCH');
   }
 
   return value;
@@ -885,34 +892,100 @@ export function assertArray(value: unknown): unknown[] {
 
 export const helpers = {
   // String
-  upper, lower, trim, split, join, substring, replace, replaceAll,
-  matches, startsWith, endsWith, contains, padStart, padEnd,
-  capitalize, camelCase, snakeCase, kebabCase,
+  upper,
+  lower,
+  trim,
+  split,
+  join,
+  substring,
+  replace,
+  replaceAll,
+  matches,
+  startsWith,
+  endsWith,
+  contains,
+  padStart,
+  padEnd,
+  capitalize,
+  camelCase,
+  snakeCase,
+  kebabCase,
 
   // Number
-  round, floor, ceil, abs, min, max, clamp, random, randomInt,
+  round,
+  floor,
+  ceil,
+  abs,
+  min,
+  max,
+  clamp,
+  random,
+  randomInt,
 
   // Array
-  sum, avg, count, first, last, unique, flatten, reverse,
-  sort, sortDesc, groupBy, keyBy, zip, compact, take, drop, range,
+  sum,
+  avg,
+  count,
+  first,
+  last,
+  unique,
+  flatten,
+  reverse,
+  sort,
+  sortDesc,
+  groupBy,
+  keyBy,
+  zip,
+  compact,
+  take,
+  drop,
+  range,
 
   // Object
-  keys, values, entries, merge, pick, omit, get, set,
+  keys,
+  values,
+  entries,
+  merge,
+  pick,
+  omit,
+  get,
+  set,
 
   // Type
-  type, isString, isNumber, isBoolean, isArray, isObject, isNull, isUndefined, isEmpty,
+  type,
+  isString,
+  isNumber,
+  isBoolean,
+  isArray,
+  isObject,
+  isNull,
+  isUndefined,
+  isEmpty,
 
   // Conversion
-  toString, toNumber, toBoolean, toArray, toJSON, fromJSON,
+  toString,
+  toNumber,
+  toBoolean,
+  toArray,
+  toJSON,
+  fromJSON,
 
   // Date
-  now, today, formatDate, parseDate,
+  now,
+  today,
+  formatDate,
+  parseDate,
 
   // Utility
-  coalesce, default: defaultValue, if: ifThen, uuid,
+  coalesce,
+  default: defaultValue,
+  if: ifThen,
+  uuid,
 
   // Assertions (legacy)
-  assertNonNull, assertType, assertArray,
+  assertNonNull,
+  assertType,
+  assertArray,
 
   // Strict Mode Helpers
   strictGet,

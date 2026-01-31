@@ -19,10 +19,9 @@
  * ```
  */
 
-import { Lexer, tokenize, LexerError } from './lexer.js';
-import { Parser, parse, ParseError } from './parser.js';
-import { CodeGenerator, generate, CodeGenOptions } from './codegen.js';
-import { helpers, MapQLError } from './runtime.js';
+import { parse } from './parser.js';
+import { generate, CodeGenOptions } from './codegen.js';
+import { helpers } from './runtime.js';
 import * as AST from './ast.js';
 
 // Re-export types
@@ -52,10 +51,7 @@ export interface EvaluateOptions {
 }
 
 /** Compiled transform function */
-export type TransformFunction = (
-  input: unknown,
-  bindings?: Record<string, unknown>
-) => unknown;
+export type TransformFunction = (input: unknown, bindings?: Record<string, unknown>) => unknown;
 
 // Simple expression cache
 const expressionCache = new Map<string, TransformFunction>();
@@ -69,10 +65,7 @@ const expressionCache = new Map<string, TransformFunction>();
  * const result = transform(data);
  * ```
  */
-export function compile(
-  expression: string,
-  options: CompileOptions = {}
-): TransformFunction {
+export function compile(expression: string, options: CompileOptions = {}): TransformFunction {
   const cacheKey = options.strict ? `strict:${expression}` : expression;
 
   // Check cache
@@ -92,12 +85,11 @@ export function compile(
   });
 
   // Create the function
-  const fn = new Function(
-    'input',
-    'bindings',
-    '__helpers',
-    `"use strict";\n${code}`
-  ) as (input: unknown, bindings: Record<string, unknown>, h: Record<string, Function>) => unknown;
+  const fn = new Function('input', 'bindings', '__helpers', `"use strict";\n${code}`) as (
+    input: unknown,
+    bindings: Record<string, unknown>,
+    h: Record<string, Function>
+  ) => unknown;
 
   // Wrap with helpers
   const transform: TransformFunction = (input, bindings = {}) => {
@@ -158,10 +150,7 @@ export function parseExpression(expression: string): AST.Program {
  * // }
  * ```
  */
-export function toJavaScript(
-  expression: string,
-  options: CodeGenOptions = {}
-): string {
+export function toJavaScript(expression: string, options: CodeGenOptions = {}): string {
   const ast = parse(expression);
   return generate(ast, options);
 }
@@ -210,10 +199,7 @@ export function getCacheStats(): { size: number; keys: string[] } {
  * const result = transform(data);
  * ```
  */
-export function mapql(
-  strings: TemplateStringsArray,
-  ...values: unknown[]
-): TransformFunction {
+export function mapql(strings: TemplateStringsArray, ...values: unknown[]): TransformFunction {
   // Combine template literal parts
   let expression = strings[0];
   for (let i = 0; i < values.length; i++) {
@@ -247,7 +233,11 @@ export const builder = {
     optional,
   }),
 
-  binary: (operator: string, left: AST.Expression, right: AST.Expression): AST.BinaryExpression => ({
+  binary: (
+    operator: string,
+    left: AST.Expression,
+    right: AST.Expression
+  ): AST.BinaryExpression => ({
     type: 'BinaryExpression',
     operator,
     left,

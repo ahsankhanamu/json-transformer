@@ -14,7 +14,7 @@
         <button
           class="toggle"
           class:active={strictMode}
-          onclick={() => strictMode = !strictMode}
+          onclick={() => (strictMode = !strictMode)}
           aria-label="Toggle strict mode"
         ></button>
       </label>
@@ -33,6 +33,6 @@
     </div>
   </div>
   <div class="flex-1 min-h-0">
-    <CodeEditor bind:value lang="mapql" />
+    <CodeEditor bind:value lang="transformer" />
   </div>
 </div>

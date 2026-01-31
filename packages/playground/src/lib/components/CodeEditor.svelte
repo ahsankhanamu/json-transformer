@@ -8,22 +8,22 @@
   import { keymap } from '@codemirror/view';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
   import { tags } from '@lezer/highlight';
-  import { functions, keywords } from '$lib/language/mapqlLanguage.js';
+  import { functions, keywords } from '$lib/language/transformerLanguage.js';
 
   let {
     value = $bindable(''),
-    lang = 'mapql',
-    placeholder = '',
+    lang = 'transformer',
+    placeholder: _placeholder = '',
     readonly = false,
-    onchange = () => {}
+    onchange = () => {},
   } = $props();
 
   let editorContainer;
   let editorView;
   const languageConf = new Compartment();
 
-  // Create MapQL autocomplete source
-  function mapqlCompletions(context) {
+  // Create transformer expression autocomplete source
+  function transformerCompletions(context) {
     // Get the word before cursor
     const word = context.matchBefore(/[\w$]*/);
     if (!word || (word.from === word.to && !context.explicit)) return null;
@@ -39,7 +39,7 @@
           detail: fn.desc,
           info: fn.syntax,
           apply: fn.insertText,
-          boost: fn.category === 'Utility' ? 1 : 0
+          boost: fn.category === 'Utility' ? 1 : 0,
         });
       }
     }
@@ -49,7 +49,7 @@
       if (kw.toLowerCase().startsWith(word.text.toLowerCase())) {
         options.push({
           label: kw,
-          type: 'keyword'
+          type: 'keyword',
         });
       }
     }
@@ -57,7 +57,7 @@
     return {
       from: word.from,
       options,
-      validFor: /^[\w$]*$/
+      validFor: /^[\w$]*$/,
     };
   }
 
@@ -69,7 +69,7 @@
     const word = beforeDot.text.slice(1); // Remove the dot
     const options = [];
 
-    // Common JS methods that make sense in MapQL context
+    // Common JS methods that make sense in transformer context
     const methods = [
       { name: 'length', type: 'property' },
       { name: 'toString', type: 'method', apply: 'toString()' },
@@ -94,7 +94,7 @@
         options.push({
           label: m.name,
           type: m.type,
-          apply: m.apply || m.name
+          apply: m.apply || m.name,
         });
       }
     }
@@ -102,7 +102,7 @@
     return {
       from: beforeDot.from + 1, // After the dot
       options,
-      validFor: /^[\w]*$/
+      validFor: /^[\w]*$/,
     };
   }
 
@@ -114,16 +114,16 @@
       case 'javascript':
       case 'js':
         return javascript();
-      case 'mapql':
+      case 'transformer':
       default:
-        // Use JavaScript as base with MapQL autocompletion
+        // Use JavaScript as base with transformer expression autocompletion
         return [
           javascript(),
           autocompletion({
-            override: [mapqlCompletions, dotCompletions],
+            override: [transformerCompletions, dotCompletions],
             icons: true,
-            optionClass: (completion) => `cm-completion-${completion.type}`
-          })
+            optionClass: (completion) => `cm-completion-${completion.type}`,
+          }),
         ];
     }
   }
@@ -151,73 +151,73 @@
     '&': {
       height: '100%',
       fontSize: '13px',
-      backgroundColor: 'var(--color-bg-secondary)'
+      backgroundColor: 'var(--color-bg-secondary)',
     },
     '.cm-content': {
       caretColor: 'var(--color-text)',
-      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace'
+      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
     },
     '.cm-cursor': {
-      borderLeftColor: 'var(--color-text)'
+      borderLeftColor: 'var(--color-text)',
     },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-      backgroundColor: 'rgba(59, 130, 246, 0.3)'
+      backgroundColor: 'rgba(59, 130, 246, 0.3)',
     },
     '.cm-activeLine': {
-      backgroundColor: 'rgba(59, 130, 246, 0.1)'
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
     },
     '.cm-gutters': {
       backgroundColor: 'var(--color-bg)',
       color: 'var(--color-text-muted)',
       border: 'none',
-      borderRight: '1px solid var(--color-border)'
+      borderRight: '1px solid var(--color-border)',
     },
     '.cm-activeLineGutter': {
-      backgroundColor: 'var(--color-bg-tertiary)'
+      backgroundColor: 'var(--color-bg-tertiary)',
     },
     '.cm-tooltip': {
       backgroundColor: 'var(--color-bg-secondary)',
       border: '1px solid var(--color-border)',
-      borderRadius: '6px'
+      borderRadius: '6px',
     },
     '.cm-tooltip-autocomplete': {
       '& > ul': {
         fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-        fontSize: '12px'
+        fontSize: '12px',
       },
       '& > ul > li': {
-        padding: '4px 8px'
+        padding: '4px 8px',
       },
       '& > ul > li[aria-selected]': {
         backgroundColor: 'var(--color-accent)',
-        color: 'white'
-      }
+        color: 'white',
+      },
     },
     '.cm-completionIcon': {
       width: '16px',
-      marginRight: '4px'
+      marginRight: '4px',
     },
     '.cm-completionIcon-function::after': {
       content: '"ƒ"',
-      color: '#a78bfa'
+      color: '#a78bfa',
     },
     '.cm-completionIcon-keyword::after': {
       content: '"K"',
-      color: '#f472b6'
+      color: '#f472b6',
     },
     '.cm-completionIcon-method::after': {
       content: '"M"',
-      color: '#60a5fa'
+      color: '#60a5fa',
     },
     '.cm-completionIcon-property::after': {
       content: '"P"',
-      color: '#34d399'
+      color: '#34d399',
     },
     '.cm-completionDetail': {
       color: 'var(--color-text-muted)',
       marginLeft: '8px',
-      fontStyle: 'italic'
-    }
+      fontStyle: 'italic',
+    },
   });
 
   onMount(() => {
@@ -241,16 +241,13 @@
         updateListener,
         EditorView.lineWrapping,
         EditorState.readOnly.of(readonly),
-        keymap.of([
-          { key: 'Tab', run: acceptCompletion },
-          ...completionKeymap
-        ])
-      ]
+        keymap.of([{ key: 'Tab', run: acceptCompletion }, ...completionKeymap]),
+      ],
     });
 
     editorView = new EditorView({
       state,
-      parent: editorContainer
+      parent: editorContainer,
     });
   });
 
@@ -265,8 +262,8 @@
         changes: {
           from: 0,
           to: editorView.state.doc.length,
-          insert: value
-        }
+          insert: value,
+        },
       });
     }
   });

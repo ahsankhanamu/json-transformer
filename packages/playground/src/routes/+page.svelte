@@ -17,10 +17,10 @@
     astResult,
     generatedJs,
     nativeJs,
-    initMapQL,
+    initTransformer,
     currentTheme,
     currentLayout,
-    layoutDirection
+    layoutDirection,
   } from '$lib';
 
   let showFunctions = $state(true);
@@ -36,7 +36,7 @@
 
   // Initialize on mount
   onMount(() => {
-    initMapQL();
+    initTransformer();
     currentTheme.init();
   });
 
@@ -89,14 +89,19 @@
 
 <div class="h-screen flex flex-col bg-[var(--color-bg)]">
   <!-- Header - matching adeo-data-mapper navbar -->
-  <header class="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+  <header
+    class="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+  >
     <div class="flex items-center gap-3">
-      <h1 class="text-sm font-semibold text-[var(--color-text)]">MapQL Playground</h1>
-      <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">v0.1.0</span>
+      <h1 class="text-sm font-semibold text-[var(--color-text)]">JSON Transformer Playground</h1>
+      <span
+        class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
+        >v0.1.0</span
+      >
     </div>
     <div class="flex items-center gap-2">
       <button
-        onclick={() => showFunctions = !showFunctions}
+        onclick={() => (showFunctions = !showFunctions)}
         class="text-xs px-2.5 py-1.5 rounded-md transition-colors {showFunctions
           ? 'bg-[var(--color-accent)] text-white'
           : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'}"
@@ -106,7 +111,7 @@
       <LayoutSelector />
       <SettingsDropdown />
       <a
-        href="https://github.com/your-repo/mapql"
+        href="https://github.com/ahsankhanamu/json-transformer"
         target="_blank"
         class="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] text-xs px-2"
       >
@@ -126,16 +131,14 @@
 
     <!-- Editors Container -->
     <div class="flex-1 flex flex-col min-h-0 p-3" bind:this={containerRef}>
-
       {#if $currentLayout === 'standard'}
         <!-- Standard Layout: Input & Preview side by side, Expression below -->
-        <div class="flex min-h-0 {$layoutDirection === 'rtl' ? 'flex-row-reverse' : ''}" style="height: {verticalSplit}%">
+        <div
+          class="flex min-h-0 {$layoutDirection === 'rtl' ? 'flex-row-reverse' : ''}"
+          style="height: {verticalSplit}%"
+        >
           <div class="flex flex-col min-h-0 min-w-0" style="width: {horizontalSplit}%">
-            <JsonEditor
-              bind:value={$inputJson}
-              isValid={$parsedInput.success}
-              label="Input JSON"
-            />
+            <JsonEditor bind:value={$inputJson} isValid={$parsedInput.success} label="Input JSON" />
           </div>
 
           <div
@@ -144,7 +147,9 @@
             role="separator"
             aria-orientation="vertical"
           >
-            <div class="w-0.5 h-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"></div>
+            <div
+              class="w-0.5 h-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+            ></div>
           </div>
 
           <div class="flex-1 flex flex-col min-h-0 min-w-0">
@@ -164,7 +169,9 @@
           role="separator"
           aria-orientation="horizontal"
         >
-          <div class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"></div>
+          <div
+            class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+          ></div>
         </div>
 
         <div class="flex-1 min-h-0">
@@ -174,16 +181,11 @@
             bind:strictMode={$strictMode}
           />
         </div>
-
       {:else if $currentLayout === 'stacked'}
         <!-- Stacked Layout: All vertical -->
         <div class="flex flex-col min-h-0 gap-3 h-full">
           <div class="flex-1 min-h-0">
-            <JsonEditor
-              bind:value={$inputJson}
-              isValid={$parsedInput.success}
-              label="Input JSON"
-            />
+            <JsonEditor bind:value={$inputJson} isValid={$parsedInput.success} label="Input JSON" />
           </div>
 
           <div class="flex-1 min-h-0">
@@ -204,7 +206,6 @@
             />
           </div>
         </div>
-
       {:else if $currentLayout === 'sidepanel'}
         <!-- Side Panel Layout: Input & Expression on left, Preview on right -->
         <div class="flex min-h-0 h-full {$layoutDirection === 'rtl' ? 'flex-row-reverse' : ''}">
@@ -224,7 +225,9 @@
               role="separator"
               aria-orientation="horizontal"
             >
-              <div class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"></div>
+              <div
+                class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+              ></div>
             </div>
 
             <div class="flex-1 min-h-0">
@@ -242,7 +245,9 @@
             role="separator"
             aria-orientation="vertical"
           >
-            <div class="w-0.5 h-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"></div>
+            <div
+              class="w-0.5 h-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+            ></div>
           </div>
 
           <!-- Right side: Preview -->
