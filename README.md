@@ -21,3 +21,15 @@ npm test
 | Logical | `&&` `||` `!` `and` `or` `not` |
 | Access | `.` `?.` `[]` `?[]` `[*]` `[?]` |
 | Other | `??` `?:` `=>` `|` (pipe) `...` (spread) |
+
+## Architecture
+
+```
+Expression String → [Lexer] → Tokens
+```
+
+The lexer tokenizes input strings, handling:
+- Multi-character operators (`??`, `?.`, `=>`, `===`)
+- String literals with escape sequences
+- Template literals with `${...}` interpolation
+- Single and multi-line comments
