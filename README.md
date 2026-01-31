@@ -25,11 +25,58 @@ npm test
 ## Architecture
 
 ```
-Expression String → [Lexer] → Tokens
+Expression String → [Lexer] → Tokens → [Parser] → AST
 ```
 
-The lexer tokenizes input strings, handling:
-- Multi-character operators (`??`, `?.`, `=>`, `===`)
-- String literals with escape sequences
-- Template literals with `${...}` interpolation
-- Single and multi-line comments
+The lexer tokenizes input strings, the parser builds an AST using recursive descent.
+
+## Syntax
+
+### Property Access
+```
+user.firstName              // Simple access
+user.address.city           // Nested access
+user?.middleName            // Optional chaining
+```
+
+### Array Operations
+```
+orders[0]                   // Index access
+orders[-1]                  // Last element
+orders[0:3]                 // Slice
+orders[*].product           // Map to property
+orders[? status == "active"] // Filter
+```
+
+### Expressions
+```
+// Arithmetic
+price * quantity + tax
+
+// String concatenation
+firstName & " " & lastName
+
+// Template literals
+`Hello ${user.name}!`
+
+// Ternary
+age >= 18 ? "Adult" : "Minor"
+
+// Null coalescing
+nickname ?? firstName ?? "Anonymous"
+
+// Logical
+isActive && !isDeleted
+```
+
+### Object Construction
+```
+{ name: user.firstName, city: user.address.city }
+```
+
+### Variable Bindings
+```
+let total = price * qty;
+let tax = total * 0.1;
+{ subtotal: total, tax, total: total + tax }
+```
