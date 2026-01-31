@@ -80,3 +80,21 @@ let total = price * qty;
 let tax = total * 0.1;
 { subtotal: total, tax, total: total + tax }
 ```
+
+### Pipe Operations
+```
+name | upper | trim
+items | filter(x => x.active) | count
+```
+
+## Built-in Functions
+
+| Category | Functions |
+|----------|-----------|
+| String | `upper`, `lower`, `trim`, `split`, `join`, `replace`, `substring` |
+| Math | `round`, `floor`, `ceil`, `abs`, `min`, `max`, `sum`, `avg` |
+| Array | `count`, `first`, `last`, `unique`, `flatten`, `sort`, `reverse`, `filter`, `map`, `find` |
+| Object | `keys`, `values`, `entries`, `pick`, `omit`, `merge` |
+| Type | `type`, `isString`, `isNumber`, `isArray`, `isObject`, `isEmpty` |
+| Conversion | `toString`, `toNumber`, `toArray`, `toBoolean` |
+| Utility | `coalesce`, `default`, `if`, `uuid` |
