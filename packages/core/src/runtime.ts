@@ -461,6 +461,43 @@ export function count(arr: unknown[]): number {
   return arr.length;
 }
 
+export function map<T, U>(arr: T[], fn: (item: T, index: number, array: T[]) => U): U[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(fn);
+}
+
+export function filter<T>(arr: T[], fn: (item: T, index: number, array: T[]) => boolean): T[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(fn);
+}
+
+export function find<T>(
+  arr: T[],
+  fn: (item: T, index: number, array: T[]) => boolean
+): T | undefined {
+  if (!Array.isArray(arr)) return undefined;
+  return arr.find(fn);
+}
+
+export function some<T>(arr: T[], fn: (item: T, index: number, array: T[]) => boolean): boolean {
+  if (!Array.isArray(arr)) return false;
+  return arr.some(fn);
+}
+
+export function every<T>(arr: T[], fn: (item: T, index: number, array: T[]) => boolean): boolean {
+  if (!Array.isArray(arr)) return true;
+  return arr.every(fn);
+}
+
+export function reduce<T, U>(
+  arr: T[],
+  fn: (acc: U, item: T, index: number, array: T[]) => U,
+  initial: U
+): U {
+  if (!Array.isArray(arr)) return initial;
+  return arr.reduce(fn, initial);
+}
+
 export function first<T>(arr: T[]): T | undefined {
   if (!Array.isArray(arr)) return undefined;
   return arr[0];
@@ -926,6 +963,12 @@ export const helpers = {
   randomInt,
 
   // Array
+  map,
+  filter,
+  find,
+  some,
+  every,
+  reduce,
   sum,
   avg,
   count,

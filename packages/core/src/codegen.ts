@@ -664,17 +664,15 @@ export class CodeGenerator {
   }
 
   private generateBinaryExpression(node: AST.BinaryExpression): string {
-    const left = this.generateExpression(node.left);
-    const right = this.generateExpression(node.right);
-
     const op = node.operator;
 
-    // Handle string concatenation with &
+    // Handle string concatenation with & using template literals
     if (op === '&') {
-      const leftWrapped = this.wrapForConcat(node.left, left);
-      const rightWrapped = this.wrapForConcat(node.right, right);
-      return `${leftWrapped} + ${rightWrapped}`;
+      return this.generateConcatenation(node);
     }
+
+    const left = this.generateExpression(node.left);
+    const right = this.generateExpression(node.right);
 
     // Handle 'in' operator
     if (op === 'in') {
@@ -682,6 +680,44 @@ export class CodeGenerator {
     }
 
     return `(${left} ${op} ${right})`;
+  }
+
+  /**
+   * Flatten a chain of & concatenations into an array of expressions
+   */
+  private flattenConcatenation(node: AST.Expression): AST.Expression[] {
+    if (node.type === 'BinaryExpression' && node.operator === '&') {
+      return [...this.flattenConcatenation(node.left), ...this.flattenConcatenation(node.right)];
+    }
+    return [node];
+  }
+
+  /**
+   * Generate string concatenation using template literals
+   */
+  private generateConcatenation(node: AST.BinaryExpression): string {
+    const parts = this.flattenConcatenation(node);
+
+    // Build template literal
+    let template = '`';
+    for (const part of parts) {
+      if (part.type === 'StringLiteral') {
+        // Escape backticks and ${} in string literals
+        const escaped = (part.value as string)
+          .replace(/\\/g, '\\\\')
+          .replace(/`/g, '\\`')
+          .replace(/\$\{/g, '\\${');
+        template += escaped;
+      } else {
+        // Wrap expression - add nullish coalescing for safety
+        const generated = this.generateExpression(part);
+        const wrapped = this.canBeNullish(part) ? `${generated} ?? ''` : generated;
+        template += '${' + wrapped + '}';
+      }
+    }
+    template += '`';
+
+    return template;
   }
 
   private generateUnaryExpression(node: AST.UnaryExpression): string {
@@ -901,7 +937,16 @@ export class CodeGenerator {
     if (funcName === 'min') return `Math.min(...[${args.join(', ')}].flat())`;
     if (funcName === 'max') return `Math.max(...[${args.join(', ')}].flat())`;
 
-    // Array functions
+    // Array functions - native methods with callbacks
+    if (funcName === 'map') return `(${args[0]} ?? []).map(${args[1]})`;
+    if (funcName === 'filter') return `(${args[0]} ?? []).filter(${args[1]})`;
+    if (funcName === 'find') return `(${args[0]} ?? []).find(${args[1]})`;
+    if (funcName === 'some') return `(${args[0]} ?? []).some(${args[1]})`;
+    if (funcName === 'every') return `(${args[0]} ?? []).every(${args[1]})`;
+    if (funcName === 'reduce')
+      return `(${args[0]} ?? []).reduce(${args[1]}, ${args[2] ?? 'undefined'})`;
+
+    // Array functions - simple
     if (funcName === 'count') return `(${args[0]} ?? []).length`;
     if (funcName === 'first') return `(${args[0]} ?? [])[0]`;
     if (funcName === 'last') return `(${args[0]} ?? []).at(-1)`;

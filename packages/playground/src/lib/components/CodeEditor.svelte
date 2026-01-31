@@ -1,14 +1,76 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, basicSetup } from 'codemirror';
-  import { EditorState, Compartment } from '@codemirror/state';
+  import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
   import { json } from '@codemirror/lang-json';
   import { javascript } from '@codemirror/lang-javascript';
-  import { autocompletion, completionKeymap, acceptCompletion } from '@codemirror/autocomplete';
-  import { keymap } from '@codemirror/view';
+  import {
+    autocompletion,
+    completionKeymap,
+    acceptCompletion,
+    currentCompletions,
+    selectedCompletion,
+  } from '@codemirror/autocomplete';
+  import { keymap, WidgetType, Decoration } from '@codemirror/view';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
   import { tags } from '@lezer/highlight';
   import { functions, keywords } from '$lib/language/transformerLanguage.js';
+  import {
+    previewExpression,
+    inputPaths as inputPathsStore,
+  } from '$lib/stores/transformerStore.js';
+  import { get } from 'svelte/store';
+
+  // Ghost text widget for completion preview
+  class GhostTextWidget extends WidgetType {
+    constructor(text) {
+      super();
+      this.text = text;
+    }
+    toDOM() {
+      const span = document.createElement('span');
+      span.textContent = this.text;
+      span.className = 'cm-ghost-text';
+      return span;
+    }
+    eq(other) {
+      return other.text === this.text;
+    }
+  }
+
+  // Effect to update ghost text
+  const setGhostText = StateEffect.define();
+
+  // State field to track ghost text decoration
+  const ghostTextField = StateField.define({
+    create() {
+      return Decoration.none;
+    },
+    update(decorations, tr) {
+      for (const e of tr.effects) {
+        if (e.is(setGhostText)) {
+          if (e.value && e.value.text && e.value.pos >= 0) {
+            try {
+              const widget = Decoration.widget({
+                widget: new GhostTextWidget(e.value.text),
+                side: 1,
+              });
+              // Ensure position is within document bounds
+              const pos = Math.min(e.value.pos, tr.newDoc.length);
+              return Decoration.set([widget.range(pos)]);
+            } catch {
+              return Decoration.none;
+            }
+          }
+          return Decoration.none;
+        }
+      }
+      // Clear on document changes
+      if (tr.docChanged) return Decoration.none;
+      return decorations;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
 
   let {
     value = $bindable(''),
@@ -22,6 +84,10 @@
   let editorContainer;
   let editorView;
   const languageConf = new Compartment();
+
+  // Timer refs for cleanup
+  let pendingGhostUpdate = null;
+  let previewDebounceTimer = null;
 
   // Create input path autocomplete source (property suggestions from input JSON)
   // Shows paths up to ONE level deeper than what user has typed
@@ -53,8 +119,14 @@
       const pathDepth = countDepth(p.path);
       if (pathDepth > typedDepth + 1) continue;
 
+      // Show just the suffix (what comes after typed text) for cleaner display
+      // e.g., if user typed "user.address.", show "city" not "user.address.city"
+      const suffix = p.path.slice(typed.length);
+      const displayLabel = suffix || p.path;
+
       options.push({
-        label: p.path,
+        label: displayLabel,
+        apply: p.path, // Insert full path
         type: p.type,
         detail: p.detail,
         boost: 2, // Boost input paths above functions
@@ -171,6 +243,11 @@
             override: [inputPathCompletions, transformerCompletions, dotCompletions],
             icons: true,
             optionClass: (completion) => `cm-completion-${completion.type}`,
+            // Don't auto-accept - require explicit Tab/Enter/Click
+            defaultKeymap: true,
+            activateOnTyping: true,
+            selectOnOpen: true,
+            closeOnBlur: true,
           }),
         ];
     }
@@ -269,12 +346,86 @@
   });
 
   onMount(() => {
-    const updateListener = EditorView.updateListener.of((update) => {
+    // Track document changes
+    const docUpdateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const newValue = update.state.doc.toString();
         if (newValue !== value) {
           value = newValue;
           onchange(newValue);
+        }
+      }
+    });
+
+    // Track completion selection for ghost text preview and live evaluation
+    let lastSelectedLabel = null;
+
+    const completionListener = EditorView.updateListener.of((update) => {
+      const completion = selectedCompletion(update.state);
+      const completions = currentCompletions(update.state);
+
+      // Get current selection label (or null if no selection)
+      const currentLabel = completion?.label || null;
+
+      // If completion changed, update ghost text and preview
+      if (currentLabel !== lastSelectedLabel) {
+        lastSelectedLabel = currentLabel;
+
+        // Clear any pending ghost update
+        if (pendingGhostUpdate) {
+          cancelAnimationFrame(pendingGhostUpdate);
+        }
+
+        if (completion && completions) {
+          // Get the text that would be inserted
+          const applyText =
+            typeof completion.apply === 'string' ? completion.apply : completion.label;
+          // Get what's already typed (the part that matches)
+          const typed = update.state.doc.sliceString(completions.from, completions.to);
+          // Ghost text is the remaining part (case-insensitive match)
+          let ghostText = '';
+          if (applyText.toLowerCase().startsWith(typed.toLowerCase())) {
+            ghostText = applyText.slice(typed.length);
+          }
+
+          // Schedule ghost text update for next frame to avoid dispatch during update
+          const pos = completions.to;
+          pendingGhostUpdate = requestAnimationFrame(() => {
+            if (ghostText && editorView) {
+              editorView.dispatch({
+                effects: setGhostText.of({ text: ghostText, pos }),
+              });
+            } else if (editorView) {
+              editorView.dispatch({ effects: setGhostText.of(null) });
+            }
+          });
+
+          // For input path completions, show live preview evaluation
+          // Check if this completion is from inputPaths (not a function or keyword)
+          // Use applyText since label may be just the suffix (e.g., "city" instead of "user.address.city")
+          const currentInputPaths = get(inputPathsStore);
+          const isInputPath = currentInputPaths.some((p) => p.path === applyText);
+
+          if (isInputPath && lang === 'transformer') {
+            // Debounce preview evaluation (150ms) - allows quick arrow navigation
+            // without triggering expensive eval on every keystroke
+            if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+            previewDebounceTimer = setTimeout(() => {
+              previewExpression.set(applyText);
+            }, 150);
+          } else {
+            if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+            previewExpression.set(null);
+          }
+        } else {
+          // No completion selected, clear ghost text and preview
+          pendingGhostUpdate = requestAnimationFrame(() => {
+            if (editorView) {
+              editorView.dispatch({ effects: setGhostText.of(null) });
+            }
+          });
+          if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+          previewExpression.set(null);
         }
       }
     });
@@ -286,10 +437,17 @@
         darkTheme,
         syntaxHighlighting(syntaxColors),
         languageConf.of(getLanguageExtension()),
-        updateListener,
+        ghostTextField,
+        docUpdateListener,
+        completionListener,
         EditorView.lineWrapping,
         EditorState.readOnly.of(readonly),
-        keymap.of([{ key: 'Tab', run: acceptCompletion }, ...completionKeymap]),
+        // Only accept completion on Tab or Enter (arrow keys just navigate)
+        keymap.of([
+          { key: 'Tab', run: acceptCompletion },
+          { key: 'Enter', run: acceptCompletion },
+          ...completionKeymap,
+        ]),
       ],
     });
 
@@ -300,6 +458,11 @@
   });
 
   onDestroy(() => {
+    // Clean up timers
+    if (pendingGhostUpdate) cancelAnimationFrame(pendingGhostUpdate);
+    if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+    // Clear preview expression when editor unmounts
+    previewExpression.set(null);
     editorView?.destroy();
   });
 
@@ -325,5 +488,11 @@
   }
   :global(.cm-scroller) {
     overflow: auto !important;
+  }
+  /* Ghost text preview for autocomplete */
+  :global(.cm-ghost-text) {
+    opacity: 0.4;
+    font-style: italic;
+    pointer-events: none;
   }
 </style>

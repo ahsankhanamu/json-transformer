@@ -2,6 +2,7 @@
   import * as prettier from 'prettier/standalone';
   import * as prettierBabel from 'prettier/plugins/babel';
   import * as prettierEstree from 'prettier/plugins/estree';
+  import CodeViewer from './CodeViewer.svelte';
 
   let {
     activeTab = $bindable('preview'),
@@ -9,6 +10,7 @@
     astResult = null,
     generatedJs = '',
     nativeJs = '',
+    isPreview = false,
   } = $props();
 
   let copied = $state(false);
@@ -106,19 +108,24 @@
         onclick={() => (activeTab = 'preview')}
       >
         Preview
+        {#if isPreview}
+          <span class="ml-1 text-[10px] px-1 py-0.5 rounded bg-[var(--color-accent)] text-white"
+            >↑↓</span
+          >
+        {/if}
       </button>
       <button class="tab" class:active={activeTab === 'ast'} onclick={() => (activeTab = 'ast')}>
         AST
       </button>
       <button class="tab" class:active={activeTab === 'js'} onclick={() => (activeTab = 'js')}>
-        Generated JS
+        Lib JS
       </button>
       <button
         class="tab"
         class:active={activeTab === 'native'}
         onclick={() => (activeTab = 'native')}
       >
-        Native JS
+        Standalone JS
       </button>
     </div>
   </div>
@@ -139,9 +146,7 @@
 
     {#if activeTab === 'preview'}
       {#if previewResult.success}
-        <pre class="text-[var(--color-success)] whitespace-pre-wrap break-all">{formatOutput(
-            previewResult.data
-          )}</pre>
+        <CodeViewer code={formatOutput(previewResult.data)} lang="json" />
       {:else}
         <div class="text-[var(--color-error)]">
           <div class="font-semibold mb-2">Error</div>
@@ -150,28 +155,23 @@
       {/if}
     {:else if activeTab === 'ast'}
       {#if astResult}
-        <pre class="text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">{formatOutput(
-            astResult
-          )}</pre>
+        <CodeViewer code={formatOutput(astResult)} lang="json" />
       {:else}
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}
     {:else if activeTab === 'js'}
       {#if formattedJs}
-        <pre
-          class="text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">{formattedJs}</pre>
+        <CodeViewer code={formattedJs} lang="javascript" />
       {:else if generatedJs}
-        <pre
-          class="text-[var(--color-text-muted)] whitespace-pre-wrap break-all">{generatedJs}</pre>
+        <CodeViewer code={generatedJs} lang="javascript" />
       {:else}
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}
     {:else if activeTab === 'native'}
       {#if formattedNativeJs}
-        <pre
-          class="text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">{formattedNativeJs}</pre>
+        <CodeViewer code={formattedNativeJs} lang="javascript" />
       {:else if nativeJs}
-        <pre class="text-[var(--color-text-muted)] whitespace-pre-wrap break-all">{nativeJs}</pre>
+        <CodeViewer code={nativeJs} lang="javascript" />
       {:else}
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}
