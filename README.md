@@ -162,3 +162,17 @@ Test coverage includes:
 - Logical operations and null handling
 - Pipe operations and object construction
 - Strict mode error messages with suggestions
+
+## Playground
+
+Interactive testing with all expression types:
+
+```bash
+npx tsx src/playground.ts
+```
+
+Includes performance benchmarks showing ~6 million ops/sec for compiled expressions.
+
+## License
+
+MIT
