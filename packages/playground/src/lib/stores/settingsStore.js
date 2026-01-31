@@ -91,7 +91,7 @@ export const layouts = {
  */
 function getInitialDirection() {
   if (!browser) return 'ltr';
-  const saved = localStorage.getItem('mapql-direction');
+  const saved = localStorage.getItem('jt-direction');
   return saved === 'rtl' ? 'rtl' : 'ltr';
 }
 
@@ -105,7 +105,7 @@ function createDirectionStore() {
     set: (dir) => {
       set(dir);
       if (browser) {
-        localStorage.setItem('mapql-direction', dir);
+        localStorage.setItem('jt-direction', dir);
       }
     },
     toggle: () => {
@@ -113,7 +113,7 @@ function createDirectionStore() {
         /** @type {Direction} */
         const newDir = current === 'ltr' ? 'rtl' : 'ltr';
         if (browser) {
-          localStorage.setItem('mapql-direction', newDir);
+          localStorage.setItem('jt-direction', newDir);
         }
         return newDir;
       });
@@ -129,7 +129,7 @@ export const layoutDirection = createDirectionStore();
  */
 function getInitialTheme() {
   if (!browser) return 'dark';
-  const saved = /** @type {ThemeName | null} */ (localStorage.getItem('mapql-theme'));
+  const saved = /** @type {ThemeName | null} */ (localStorage.getItem('jt-theme'));
   if (saved && saved in themes) return saved;
   if (window.matchMedia('(prefers-color-scheme: light)').matches) {
     return 'light';
@@ -143,7 +143,7 @@ function getInitialTheme() {
  */
 function getInitialLayout() {
   if (!browser) return 'standard';
-  const saved = /** @type {LayoutName | null} */ (localStorage.getItem('mapql-layout'));
+  const saved = /** @type {LayoutName | null} */ (localStorage.getItem('jt-layout'));
   if (saved && saved in layouts) return saved;
   return 'standard';
 }
@@ -178,7 +178,7 @@ function createThemeStore() {
       if (themeName in themes) {
         set(themeName);
         if (browser) {
-          localStorage.setItem('mapql-theme', themeName);
+          localStorage.setItem('jt-theme', themeName);
           applyTheme(themeName);
         }
       }
@@ -205,7 +205,7 @@ function createLayoutStore() {
       if (layoutName in layouts) {
         set(layoutName);
         if (browser) {
-          localStorage.setItem('mapql-layout', layoutName);
+          localStorage.setItem('jt-layout', layoutName);
         }
       }
     },

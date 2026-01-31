@@ -1,5 +1,5 @@
 /**
- * MapQL Runtime Helpers
+ * JSON Transformer Runtime Helpers
  * These functions are available during expression evaluation
  */
 
@@ -7,7 +7,7 @@
 // ERROR HANDLING
 // =============================================================================
 
-export interface MapQLErrorDetails {
+export interface TransformErrorDetails {
   code: string;
   path?: string;
   expected?: string;
@@ -16,7 +16,7 @@ export interface MapQLErrorDetails {
   value?: unknown;
 }
 
-export class MapQLError extends Error {
+export class TransformError extends Error {
   public code: string;
   public path?: string;
   public expected?: string;
@@ -24,9 +24,9 @@ export class MapQLError extends Error {
   public suggestions?: string[];
   public value?: unknown;
 
-  constructor(message: string, details: MapQLErrorDetails | string = 'MAPQL_ERROR') {
+  constructor(message: string, details: TransformErrorDetails | string = 'TRANSFORM_ERROR') {
     super(message);
-    this.name = 'MapQLError';
+    this.name = 'TransformError';
 
     if (typeof details === 'string') {
       this.code = details;
@@ -41,7 +41,7 @@ export class MapQLError extends Error {
   }
 
   toString(): string {
-    let msg = `MapQLError: ${this.message}`;
+    let msg = `TransformError: ${this.message}`;
     if (this.path) msg += `\n  Path: ${this.path}`;
     if (this.suggestions?.length) {
       msg += `\n  Did you mean: ${this.suggestions.join(', ')}?`;
@@ -112,7 +112,7 @@ function getTypeName(value: unknown): string {
 export function strictGet(obj: unknown, property: string, path: string): unknown {
   // Check if object is null/undefined
   if (obj === null) {
-    throw new MapQLError(`Cannot access property '${property}' of null`, {
+    throw new TransformError(`Cannot access property '${property}' of null`, {
       code: 'NULL_ACCESS',
       path,
       actual: 'null',
@@ -120,7 +120,7 @@ export function strictGet(obj: unknown, property: string, path: string): unknown
   }
 
   if (obj === undefined) {
-    throw new MapQLError(`Cannot access property '${property}' of undefined`, {
+    throw new TransformError(`Cannot access property '${property}' of undefined`, {
       code: 'UNDEFINED_ACCESS',
       path,
       actual: 'undefined',
@@ -129,7 +129,7 @@ export function strictGet(obj: unknown, property: string, path: string): unknown
 
   // Check if object is actually an object
   if (typeof obj !== 'object') {
-    throw new MapQLError(`Cannot access property '${property}' of ${getTypeName(obj)}`, {
+    throw new TransformError(`Cannot access property '${property}' of ${getTypeName(obj)}`, {
       code: 'INVALID_ACCESS',
       path,
       expected: 'object',
@@ -147,7 +147,7 @@ export function strictGet(obj: unknown, property: string, path: string): unknown
     let message = `Property '${property}' does not exist`;
     if (path) message += ` at path '${path}'`;
 
-    throw new MapQLError(message, {
+    throw new TransformError(message, {
       code: 'MISSING_PROPERTY',
       path: path ? `${path}.${property}` : property,
       suggestions: suggestions.length > 0 ? suggestions : undefined,
@@ -162,7 +162,7 @@ export function strictGet(obj: unknown, property: string, path: string): unknown
  */
 export function strictIndex(arr: unknown, index: number, path: string): unknown {
   if (arr === null || arr === undefined) {
-    throw new MapQLError(`Cannot access index [${index}] of ${getTypeName(arr)}`, {
+    throw new TransformError(`Cannot access index [${index}] of ${getTypeName(arr)}`, {
       code: 'NULL_INDEX',
       path,
       actual: getTypeName(arr),
@@ -170,7 +170,7 @@ export function strictIndex(arr: unknown, index: number, path: string): unknown 
   }
 
   if (!Array.isArray(arr)) {
-    throw new MapQLError(`Cannot access index [${index}] - value is not an array`, {
+    throw new TransformError(`Cannot access index [${index}] - value is not an array`, {
       code: 'NOT_ARRAY',
       path,
       expected: 'array',
@@ -182,11 +182,14 @@ export function strictIndex(arr: unknown, index: number, path: string): unknown 
   const actualIndex = index < 0 ? arr.length + index : index;
 
   if (actualIndex < 0 || actualIndex >= arr.length) {
-    throw new MapQLError(`Array index ${index} is out of bounds (array length: ${arr.length})`, {
-      code: 'INDEX_OUT_OF_BOUNDS',
-      path: `${path}[${index}]`,
-      value: arr.length,
-    });
+    throw new TransformError(
+      `Array index ${index} is out of bounds (array length: ${arr.length})`,
+      {
+        code: 'INDEX_OUT_OF_BOUNDS',
+        path: `${path}[${index}]`,
+        value: arr.length,
+      }
+    );
   }
 
   return arr[actualIndex];
@@ -197,7 +200,7 @@ export function strictIndex(arr: unknown, index: number, path: string): unknown 
  */
 export function strictArray(value: unknown, path: string): unknown[] {
   if (value === null || value === undefined) {
-    throw new MapQLError(`Expected array but got ${getTypeName(value)}`, {
+    throw new TransformError(`Expected array but got ${getTypeName(value)}`, {
       code: 'NULL_ARRAY',
       path,
       expected: 'array',
@@ -206,7 +209,7 @@ export function strictArray(value: unknown, path: string): unknown[] {
   }
 
   if (!Array.isArray(value)) {
-    throw new MapQLError(`Expected array but got ${getTypeName(value)}`, {
+    throw new TransformError(`Expected array but got ${getTypeName(value)}`, {
       code: 'NOT_ARRAY',
       path,
       expected: 'array',
@@ -222,7 +225,7 @@ export function strictArray(value: unknown, path: string): unknown[] {
  */
 export function strictNonNull<T>(value: T, path: string, message?: string): NonNullable<T> {
   if (value === null || value === undefined) {
-    throw new MapQLError(message ?? `Value at '${path}' is ${getTypeName(value)}`, {
+    throw new TransformError(message ?? `Value at '${path}' is ${getTypeName(value)}`, {
       code: 'NULL_VALUE',
       path,
       actual: getTypeName(value),
@@ -240,7 +243,7 @@ export function strictType(value: unknown, expectedType: string, path: string): 
   if (expectedType === 'any') return value;
 
   if (actualType !== expectedType) {
-    throw new MapQLError(
+    throw new TransformError(
       `Type mismatch at '${path}': expected ${expectedType}, got ${actualType}`,
       { code: 'TYPE_MISMATCH', path, expected: expectedType, actual: actualType }
     );
@@ -855,7 +858,7 @@ export function uuid(): string {
 
 export function assertNonNull<T>(value: T, message?: string): NonNullable<T> {
   if (value == null) {
-    throw new MapQLError(message ?? 'Value is null or undefined', 'NULL_VALUE');
+    throw new TransformError(message ?? 'Value is null or undefined', 'NULL_VALUE');
   }
   return value as NonNullable<T>;
 }
@@ -866,14 +869,14 @@ export function assertType(
   nonNull: boolean = false
 ): unknown {
   if (nonNull && value == null) {
-    throw new MapQLError(`Expected non-null ${expectedType}, got ${value}`, 'NULL_VALUE');
+    throw new TransformError(`Expected non-null ${expectedType}, got ${value}`, 'NULL_VALUE');
   }
 
   if (value == null) return value;
 
   const actualType = type(value);
   if (actualType !== expectedType && expectedType !== 'any') {
-    throw new MapQLError(`Expected ${expectedType}, got ${actualType}`, 'TYPE_MISMATCH');
+    throw new TransformError(`Expected ${expectedType}, got ${actualType}`, 'TYPE_MISMATCH');
   }
 
   return value;
@@ -881,7 +884,7 @@ export function assertType(
 
 export function assertArray(value: unknown): unknown[] {
   if (!Array.isArray(value)) {
-    throw new MapQLError(`Expected array, got ${type(value)}`, 'TYPE_MISMATCH');
+    throw new TransformError(`Expected array, got ${type(value)}`, 'TYPE_MISMATCH');
   }
   return value;
 }

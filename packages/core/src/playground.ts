@@ -1,5 +1,5 @@
 /**
- * MapQL Playground - Interactive testing
+ * JSON Transformer Playground - Interactive testing
  * Run with: npx tsx src/playground.ts
  */
 
@@ -102,7 +102,7 @@ const expressions = [
 // =============================================================================
 
 console.log('='.repeat(80));
-console.log('MapQL Playground');
+console.log('JSON Transformer Playground');
 console.log('='.repeat(80));
 console.log();
 

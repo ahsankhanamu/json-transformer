@@ -1,5 +1,5 @@
 /**
- * MapQL Token Types and Definitions
+ * Token Types and Definitions
  */
 
 export enum TokenType {

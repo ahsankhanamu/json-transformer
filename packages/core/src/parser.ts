@@ -1,5 +1,5 @@
 /**
- * MapQL Parser - Recursive Descent Parser
+ * Parser - Recursive Descent Parser
  * Produces AST from tokens
  */
 

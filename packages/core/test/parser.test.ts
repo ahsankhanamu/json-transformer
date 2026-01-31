@@ -1,10 +1,10 @@
 /**
- * MapQL Parser Tests
+ * Parser Tests
  */
 
 import { evaluate, validate, toJavaScript } from '../src/index.js';
 
-describe('MapQL Parser', () => {
+describe('Parser', () => {
   const testData = {
     user: {
       firstName: 'John',

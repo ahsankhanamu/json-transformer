@@ -1,5 +1,5 @@
 /**
- * MapQL Code Generator - Converts AST to JavaScript
+ * Code Generator - Converts AST to JavaScript
  */
 
 import * as AST from './ast.js';

@@ -1,12 +1,12 @@
 /**
- * MapQL - JSON Query and Transformation Language
+ * JSON Transformer - Expression Language for JSON Data
  *
  * A simple, intuitive expression language for JSON data that compiles to JavaScript.
  * Supports both strict (validation) and forgiving (production) modes.
  *
  * @example
  * ```ts
- * import { compile, evaluate } from 'mapql';
+ * import { compile, evaluate } from '@ahsankhanamu/json-transformer';
  *
  * // Compile an expression
  * const fn = compile('user.name | upper');
@@ -31,7 +31,7 @@ export { Lexer, tokenize, LexerError } from './lexer.js';
 export { Parser, parse, ParseError } from './parser.js';
 export { CodeGenerator, generate } from './codegen.js';
 export type { CodeGenOptions } from './codegen.js';
-export { helpers, MapQLError } from './runtime.js';
+export { helpers, TransformError } from './runtime.js';
 export * as AST from './ast.js';
 
 // =============================================================================
@@ -57,7 +57,7 @@ export type TransformFunction = (input: unknown, bindings?: Record<string, unkno
 const expressionCache = new Map<string, TransformFunction>();
 
 /**
- * Compile a MapQL expression to a reusable function
+ * Compile an expression to a reusable function
  *
  * @example
  * ```ts
@@ -105,7 +105,7 @@ export function compile(expression: string, options: CompileOptions = {}): Trans
 }
 
 /**
- * Evaluate a MapQL expression directly
+ * Evaluate an expression directly
  *
  * @example
  * ```ts
@@ -126,7 +126,7 @@ export function evaluate(
 }
 
 /**
- * Parse a MapQL expression and return the AST
+ * Parse an expression and return the AST
  *
  * @example
  * ```ts
@@ -139,7 +139,7 @@ export function parseExpression(expression: string): AST.Program {
 }
 
 /**
- * Generate JavaScript code from a MapQL expression
+ * Generate JavaScript code from an expression
  *
  * @example
  * ```ts
@@ -156,7 +156,7 @@ export function toJavaScript(expression: string, options: CodeGenOptions = {}): 
 }
 
 /**
- * Validate a MapQL expression without executing it
+ * Validate an expression without executing it
  *
  * @returns null if valid, or an Error with details
  */
@@ -191,15 +191,15 @@ export function getCacheStats(): { size: number; keys: string[] } {
 // =============================================================================
 
 /**
- * Template literal tag for MapQL expressions
+ * Template literal tag for expressions
  *
  * @example
  * ```ts
- * const transform = mapql`orders[*].{ id, total: price * qty }`;
+ * const transform = jt`orders[*].{ id, total: price * qty }`;
  * const result = transform(data);
  * ```
  */
-export function mapql(strings: TemplateStringsArray, ...values: unknown[]): TransformFunction {
+export function jt(strings: TemplateStringsArray, ...values: unknown[]): TransformFunction {
   // Combine template literal parts
   let expression = strings[0];
   for (let i = 0; i < values.length; i++) {
@@ -279,7 +279,7 @@ export default {
   validate,
   clearCache,
   getCacheStats,
-  mapql,
+  jt,
   builder,
   helpers,
 };

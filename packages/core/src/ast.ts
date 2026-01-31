@@ -1,5 +1,5 @@
 /**
- * MapQL Abstract Syntax Tree Node Types
+ * Abstract Syntax Tree Node Types
  */
 
 export interface BaseNode {

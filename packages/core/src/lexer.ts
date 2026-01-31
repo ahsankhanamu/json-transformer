@@ -1,5 +1,5 @@
 /**
- * MapQL Lexer - Tokenizes input string into tokens
+ * Lexer - Tokenizes input string into tokens
  */
 
 import { Token, TokenType, KEYWORDS } from './tokens.js';
