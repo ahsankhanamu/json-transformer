@@ -24,40 +24,41 @@
   const languageConf = new Compartment();
 
   // Create input path autocomplete source (property suggestions from input JSON)
+  // Shows paths up to ONE level deeper than what user has typed
   function inputPathCompletions(context) {
     // Match property paths: word, word.word, word[].word, etc.
     const pathMatch = context.matchBefore(/[\w$][\w$.[\]]*$/);
     if (!pathMatch || inputPaths.length === 0) return null;
 
-    const typed = pathMatch.text.toLowerCase();
+    const typed = pathMatch.text;
+    const typedLower = typed.toLowerCase();
     const options = [];
+
+    // Count depth: number of '.' plus number of '[]' or '[n]' segments
+    const countDepth = (s) => {
+      const dots = (s.match(/\./g) || []).length;
+      const brackets = (s.match(/\[[^\]]*\]/g) || []).length;
+      return dots + brackets;
+    };
+
+    const typedDepth = countDepth(typed);
 
     for (const p of inputPaths) {
       const pathLower = p.path.toLowerCase();
-      // Match if typed text is a prefix of the path
-      if (pathLower.startsWith(typed)) {
-        options.push({
-          label: p.path,
-          type: p.type,
-          detail: p.detail,
-          boost: 2, // Boost input paths above functions
-        });
-      }
-      // Also match if last segment matches (for nested access)
-      else if (typed.includes('.')) {
-        const lastDot = typed.lastIndexOf('.');
-        const afterDot = typed.slice(lastDot + 1);
-        const pathAfterDot = p.path.includes('.')
-          ? p.path.slice(p.path.lastIndexOf('.') + 1)
-          : p.path;
-        if (pathAfterDot.toLowerCase().startsWith(afterDot)) {
-          options.push({
-            label: p.path,
-            type: p.type,
-            detail: p.detail,
-          });
-        }
-      }
+
+      // Path must start with typed text (case-insensitive)
+      if (!pathLower.startsWith(typedLower)) continue;
+
+      // Path depth must be at most one more than typed depth
+      const pathDepth = countDepth(p.path);
+      if (pathDepth > typedDepth + 1) continue;
+
+      options.push({
+        label: p.path,
+        type: p.type,
+        detail: p.detail,
+        boost: 2, // Boost input paths above functions
+      });
     }
 
     if (options.length === 0) return null;
