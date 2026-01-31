@@ -1,8 +1,13 @@
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
+/** @typedef {'light' | 'dark' | 'midnight'} ThemeName */
+/** @typedef {'standard' | 'stacked' | 'sidepanel'} LayoutName */
+/** @typedef {'ltr' | 'rtl'} Direction */
+
 /**
  * Theme definitions - matching adeo-data-mapper
+ * @type {Record<ThemeName, { name: string; colors: Record<string, string> }>}
  */
 export const themes = {
   light: {
@@ -60,6 +65,7 @@ export const themes = {
 
 /**
  * Layout definitions
+ * @type {Record<LayoutName, { name: string; description: string; icon: string }>}
  */
 export const layouts = {
   standard: {
@@ -79,7 +85,10 @@ export const layouts = {
   },
 };
 
-// Direction for horizontal layouts (LTR/RTL)
+/**
+ * Direction for horizontal layouts (LTR/RTL)
+ * @returns {Direction}
+ */
 function getInitialDirection() {
   if (!browser) return 'ltr';
   const saved = localStorage.getItem('mapql-direction');
@@ -92,6 +101,7 @@ function createDirectionStore() {
 
   return {
     subscribe,
+    /** @param {Direction} dir */
     set: (dir) => {
       set(dir);
       if (browser) {
@@ -100,6 +110,7 @@ function createDirectionStore() {
     },
     toggle: () => {
       update((current) => {
+        /** @type {Direction} */
         const newDir = current === 'ltr' ? 'rtl' : 'ltr';
         if (browser) {
           localStorage.setItem('mapql-direction', newDir);
@@ -112,26 +123,35 @@ function createDirectionStore() {
 
 export const layoutDirection = createDirectionStore();
 
-// Get initial theme
+/**
+ * Get initial theme
+ * @returns {ThemeName}
+ */
 function getInitialTheme() {
   if (!browser) return 'dark';
-  const saved = localStorage.getItem('mapql-theme');
-  if (saved && themes[saved]) return saved;
+  const saved = /** @type {ThemeName | null} */ (localStorage.getItem('mapql-theme'));
+  if (saved && saved in themes) return saved;
   if (window.matchMedia('(prefers-color-scheme: light)').matches) {
     return 'light';
   }
   return 'dark';
 }
 
-// Get initial layout
+/**
+ * Get initial layout
+ * @returns {LayoutName}
+ */
 function getInitialLayout() {
   if (!browser) return 'standard';
-  const saved = localStorage.getItem('mapql-layout');
-  if (saved && layouts[saved]) return saved;
+  const saved = /** @type {LayoutName | null} */ (localStorage.getItem('mapql-layout'));
+  if (saved && saved in layouts) return saved;
   return 'standard';
 }
 
-// Apply theme to document
+/**
+ * Apply theme to document
+ * @param {ThemeName} themeName
+ */
 function applyTheme(themeName) {
   if (!browser) return;
   const theme = themes[themeName];
@@ -146,15 +166,16 @@ function applyTheme(themeName) {
   });
 }
 
-// Create theme store
+/** Create theme store */
 function createThemeStore() {
   const initialTheme = browser ? getInitialTheme() : 'dark';
   const { subscribe, set } = writable(initialTheme);
 
   return {
     subscribe,
+    /** @param {ThemeName} themeName */
     set: (themeName) => {
-      if (themes[themeName]) {
+      if (themeName in themes) {
         set(themeName);
         if (browser) {
           localStorage.setItem('mapql-theme', themeName);
@@ -172,15 +193,16 @@ function createThemeStore() {
   };
 }
 
-// Create layout store
+/** Create layout store */
 function createLayoutStore() {
   const initialLayout = browser ? getInitialLayout() : 'standard';
   const { subscribe, set } = writable(initialLayout);
 
   return {
     subscribe,
+    /** @param {LayoutName} layoutName */
     set: (layoutName) => {
-      if (layouts[layoutName]) {
+      if (layoutName in layouts) {
         set(layoutName);
         if (browser) {
           localStorage.setItem('mapql-layout', layoutName);
@@ -194,12 +216,12 @@ export const currentTheme = createThemeStore();
 export const currentLayout = createLayoutStore();
 
 // Derived stores for convenience
-export const themeInfo = derived(currentTheme, ($theme) => ({
+export const themeInfo = derived(currentTheme, (/** @type {ThemeName} */ $theme) => ({
   id: $theme,
   ...themes[$theme],
 }));
 
-export const layoutInfo = derived(currentLayout, ($layout) => ({
+export const layoutInfo = derived(currentLayout, (/** @type {LayoutName} */ $layout) => ({
   id: $layout,
   ...layouts[$layout],
 }));
