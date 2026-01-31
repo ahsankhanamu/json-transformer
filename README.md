@@ -10,3 +10,14 @@ cd json-transformer
 npm install
 npm test
 ```
+
+## Supported Tokens
+
+| Category | Tokens |
+|----------|--------|
+| Literals | Numbers, strings, template literals, booleans, null |
+| Operators | `+` `-` `*` `/` `%` `&` (concat) |
+| Comparison | `==` `!=` `===` `!==` `<` `>` `<=` `>=` |
+| Logical | `&&` `||` `!` `and` `or` `not` |
+| Access | `.` `?.` `[]` `?[]` `[*]` `[?]` |
+| Other | `??` `?:` `=>` `|` (pipe) `...` (spread) |
