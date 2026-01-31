@@ -296,6 +296,30 @@ orders[0] | { doubled: .price * 2 }
 - `...` spreads the piped value (bare spread, no object prefix needed)
 - Expressions can use `.` references mixed with literals and operations
 
+#### Pipe to Array Construction
+
+Extract values into arrays using pipe-to-array:
+
+```javascript
+// Shorthand: identifier becomes .identifier on pipe value
+orders[0] | [id, product, price]
+// → [1, "Widget", 25.99]
+
+// Explicit dot syntax
+orders[0] | [.id, .product]
+// → [1, "Widget"]
+
+// Empty array
+orders[0] | []
+// → []
+
+// Mixed with expressions
+orders[0] | [.id, .price * 2, "constant"]
+// → [1, 51.98, "constant"]
+```
+
+**Note:** `| [0]` is still index access (single number), while `| [id]` or `| [.id]` is array construction.
+
 ## Built-in Functions
 
 | Category | Functions |

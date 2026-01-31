@@ -231,6 +231,51 @@ describe('Parser', () => {
       const result = evaluate('orders[0] | { doubled: .price * 2 }', testData);
       expect(result).toEqual({ doubled: 51.98 });
     });
+
+    test('pipe to empty object', () => {
+      const result = evaluate('orders[0] | {}', testData);
+      expect(result).toEqual({});
+    });
+
+    test('pipe to object with shorthand property', () => {
+      const result = evaluate('orders[0] | { id }', testData);
+      expect(result).toEqual({ id: 1 });
+    });
+
+    test('pipe to object with shorthand and regular properties', () => {
+      const result = evaluate('orders[0] | { id, name: .product }', testData);
+      expect(result).toEqual({ id: 1, name: 'Widget' });
+    });
+
+    test('pipe to object with literal value', () => {
+      const result = evaluate('orders[0] | { "status": "custom" }', testData);
+      expect(result).toEqual({ status: 'custom' });
+    });
+
+    test('pipe to array with shorthand', () => {
+      const result = evaluate('orders[0] | [id, product]', testData);
+      expect(result).toEqual([1, 'Widget']);
+    });
+
+    test('pipe to array with dot syntax', () => {
+      const result = evaluate('orders[0] | [.id, .product, .price]', testData);
+      expect(result).toEqual([1, 'Widget', 25.99]);
+    });
+
+    test('pipe to empty array', () => {
+      const result = evaluate('orders[0] | []', testData);
+      expect(result).toEqual([]);
+    });
+
+    test('pipe index access still works', () => {
+      const result = evaluate('orders | [0]', testData);
+      expect(result).toEqual(testData.orders[0]);
+    });
+
+    test('pipe index access with chaining', () => {
+      const result = evaluate('orders | [1] | .product', testData);
+      expect(result).toBe('Gadget');
+    });
   });
 
   describe('Object Construction', () => {

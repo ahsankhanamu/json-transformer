@@ -86,7 +86,7 @@ export class Parser {
 
   // Pipe: value | transform | transform
   // Also supports jq-style property access: value | .field | .[0] | .method()
-  // And pipe-to-object construction: value | { id: .id, name: .name }
+  // And pipe-to-object/array construction: value | { id: .id } or value | [.id, .name]
   private parsePipe(): AST.Expression {
     let left = this.parseTernary();
 
@@ -96,8 +96,8 @@ export class Parser {
         const right = this.parsePipePropertyAccess();
         left = { type: 'PipeExpression', left, right };
       } else if (this.check(TokenType.LBRACKET)) {
-        // Also support | [0] syntax (without dot)
-        const right = this.parsePipeIndexAccess();
+        // Could be index access [0] or array construction [.id, .name]
+        const right = this.parsePipeArrayOrIndex();
         left = { type: 'PipeExpression', left, right };
       } else if (this.check(TokenType.LBRACE)) {
         // Pipe-to-object construction: value | { .field, newKey: .other }
@@ -112,6 +112,38 @@ export class Parser {
     return left;
   }
 
+  // Determine if | [...] is array construction or index access
+  // Array construction: | [.id, .name] or | [id, name] (shorthand) or | [expr, expr, ...]
+  // Index access: | [0] or | [expr] (single non-identifier expression)
+  private parsePipeArrayOrIndex(): AST.Expression {
+    // Peek at what follows [
+    const afterBracket = this.peekNext(); // token after [
+
+    // If [ is followed by DOT, it's array construction with pipe context refs: [.id, .name]
+    if (afterBracket.type === TokenType.DOT) {
+      return this.parsePipeArrayConstruction();
+    }
+
+    // If [ is followed by ], it's empty array construction: []
+    if (afterBracket.type === TokenType.RBRACKET) {
+      return this.parsePipeArrayConstruction();
+    }
+
+    // If [ is followed by SPREAD, it's array construction: [...items]
+    if (afterBracket.type === TokenType.SPREAD) {
+      return this.parsePipeArrayConstruction();
+    }
+
+    // If [ is followed by identifier, check if comma follows (array) or ] follows (index)
+    // For now, if followed by identifier, treat as array construction (shorthand)
+    if (afterBracket.type === TokenType.IDENTIFIER) {
+      return this.parsePipeArrayConstruction();
+    }
+
+    // Otherwise (number, string, expression), treat as index access
+    return this.parsePipeIndexAccess();
+  }
+
   // Parse pipe-to-object construction: value | { id: .id, name: .name | upper }
   private parsePipeObjectConstruction(): AST.ObjectLiteral {
     const savedContext = this.inPipeObjectContext;
@@ -122,6 +154,56 @@ export class Parser {
 
     this.inPipeObjectContext = savedContext;
     return result;
+  }
+
+  // Parse pipe-to-array construction: value | [.id, .name] or value | [id, name]
+  private parsePipeArrayConstruction(): AST.ArrayLiteral {
+    const savedContext = this.inPipeObjectContext;
+    this.inPipeObjectContext = true;
+
+    this.advance(); // consume [
+    const result = this.parsePipeArrayLiteral();
+
+    this.inPipeObjectContext = savedContext;
+    return result;
+  }
+
+  // Parse array literal in pipe context - identifiers become pipe context refs
+  private parsePipeArrayLiteral(): AST.ArrayLiteral {
+    const elements: (AST.Expression | AST.SpreadElement)[] = [];
+
+    while (!this.check(TokenType.RBRACKET) && !this.isAtEnd()) {
+      if (this.match(TokenType.SPREAD)) {
+        // Spread in pipe array context: [...] spreads pipe value, [...expr] spreads expr
+        if (this.check(TokenType.COMMA) || this.check(TokenType.RBRACKET)) {
+          // Bare spread: [...] spreads the pipe context
+          elements.push({ type: 'SpreadElement', argument: { type: 'PipeContextRef' } });
+        } else {
+          const argument = this.parseExpression();
+          elements.push({ type: 'SpreadElement', argument });
+        }
+      } else if (this.match(TokenType.IDENTIFIER)) {
+        // Shorthand: identifier in pipe array context becomes .identifier
+        const name = this.previous().value;
+        elements.push({
+          type: 'MemberAccess',
+          object: { type: 'PipeContextRef' },
+          property: name,
+          optional: false,
+        });
+      } else {
+        elements.push(this.parseExpression());
+      }
+
+      if (!this.check(TokenType.RBRACKET)) {
+        this.consume(TokenType.COMMA, 'Expected "," between elements');
+        // Allow trailing comma
+        if (this.check(TokenType.RBRACKET)) break;
+      }
+    }
+
+    this.consume(TokenType.RBRACKET, 'Expected "]" after array literal');
+    return { type: 'ArrayLiteral', elements };
   }
 
   // Parse jq-style pipe property access: .field, .[0], .field.subfield, .method()
@@ -739,9 +821,24 @@ export class Parser {
           throw new ParseError('Expected property name', this.peek());
         }
 
-        // Shorthand: { foo } means { foo: foo }
+        // Shorthand: { foo } means { foo: foo } in normal context
+        // But in pipe context: { foo } means { foo: .foo } (reference pipe value)
         if (!this.check(TokenType.COLON)) {
-          properties.push({ type: 'ShorthandProperty', key });
+          if (this.inPipeObjectContext) {
+            // In pipe context, expand shorthand to reference pipe value
+            properties.push({
+              type: 'StandardProperty',
+              key,
+              value: {
+                type: 'MemberAccess',
+                object: { type: 'PipeContextRef' },
+                property: key,
+                optional: false,
+              },
+            });
+          } else {
+            properties.push({ type: 'ShorthandProperty', key });
+          }
         } else {
           this.consume(TokenType.COLON, 'Expected ":" after property key');
           const value = this.parseExpression();
@@ -959,6 +1056,13 @@ export class Parser {
 
   private peek(): Token {
     return this.tokens[this.current];
+  }
+
+  private peekNext(): Token {
+    if (this.current + 1 >= this.tokens.length) {
+      return this.tokens[this.tokens.length - 1]; // Return EOF
+    }
+    return this.tokens[this.current + 1];
   }
 
   private previous(): Token {

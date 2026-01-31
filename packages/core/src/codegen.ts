@@ -126,8 +126,16 @@ export class CodeGenerator {
     // current is now the initial value (leftmost expression)
     const initial = current;
 
-    // If only one pipe, use simple inline generation
-    if (steps.length === 1) {
+    // Check if any step needs a pipe variable (ObjectLiteral, ArrayLiteral, or PipeContextRef)
+    const needsPipeVar = steps.some(
+      (step) =>
+        step.type === 'ObjectLiteral' ||
+        step.type === 'ArrayLiteral' ||
+        this.containsPipeContextRef(step)
+    );
+
+    // If single pipe and no pipe variable needed, use simple inline generation
+    if (steps.length === 1 && !needsPipeVar) {
       const expr = this.generateExpression(node);
       return [`return ${expr};`];
     }
@@ -158,6 +166,26 @@ export class CodeGenerator {
    * Generate code for a single pipe step, given the pipe variable name.
    */
   private generatePipeStep(step: AST.Expression, pipeVar: string): string {
+    // Handle ObjectLiteral (pipe-to-object construction)
+    // Always set pipeContextVar so shorthand properties and .field access work
+    if (step.type === 'ObjectLiteral') {
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = pipeVar;
+      const result = this.generateExpression(step);
+      this.pipeContextVar = prevPipeVar;
+      return result;
+    }
+
+    // Handle ArrayLiteral (pipe-to-array construction)
+    // Always set pipeContextVar so shorthand identifiers and .field access work
+    if (step.type === 'ArrayLiteral') {
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = pipeVar;
+      const result = this.generateExpression(step);
+      this.pipeContextVar = prevPipeVar;
+      return result;
+    }
+
     // Handle PipeContextRef-based expressions (jq-style: .field, .[0], .method())
     if (this.containsPipeContextRef(step)) {
       const prevPipeVar = this.pipeContextVar;
@@ -676,6 +704,29 @@ export class CodeGenerator {
   private generatePipeExpression(node: AST.PipeExpression): string {
     const left = this.generateExpression(node.left);
 
+    // ObjectLiteral on right side always uses IIFE pattern (pipe-to-object construction)
+    // This handles: value | { }, value | { id: .id }, value | { "key": "value" }
+    if (node.right.type === 'ObjectLiteral') {
+      const tempVar = this.getTempVar('_pipe');
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = tempVar;
+      const right = this.generateExpression(node.right);
+      this.pipeContextVar = prevPipeVar;
+      // Arrow fn returning object needs extra parens: (() => ({ }))
+      return `(((${tempVar}) => (${right}))(${left}))`;
+    }
+
+    // ArrayLiteral on right side uses IIFE pattern (pipe-to-array construction)
+    // This handles: value | [], value | [.id, .name], value | [id, name]
+    if (node.right.type === 'ArrayLiteral') {
+      const tempVar = this.getTempVar('_pipe');
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = tempVar;
+      const right = this.generateExpression(node.right);
+      this.pipeContextVar = prevPipeVar;
+      return `(((${tempVar}) => ${right})(${left}))`;
+    }
+
     // Check if right side contains PipeContextRef (jq-style property access)
     if (this.containsPipeContextRef(node.right)) {
       // Generate with temp variable using IIFE to declare the variable
@@ -686,9 +737,7 @@ export class CodeGenerator {
       this.pipeContextVar = prevPipeVar;
 
       // Wrap in IIFE to declare the temp variable
-      // Extra parens needed for object literals (arrow fn returning object needs parens)
-      const wrappedRight = node.right.type === 'ObjectLiteral' ? `(${right})` : right;
-      return `(((${tempVar}) => ${wrappedRight})(${left}))`;
+      return `(((${tempVar}) => ${right})(${left}))`;
     }
 
     // Try to generate a piped call (handles Identifier, CallExpression, and wrapped versions)

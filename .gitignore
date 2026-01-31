@@ -9,6 +9,8 @@ packages/docs/.astro/
 # IDE
 .idea/
 .vscode/
+.cursor/
+.claude/
 *.swp
 *.swo
 
