@@ -3,14 +3,12 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    sveltekit()
-  ],
+  plugins: [tailwindcss(), sveltekit()],
   optimizeDeps: {
-    include: ['@ahsankhanamu/json-transformer']
+    // Exclude workspace package from pre-bundling so changes are picked up immediately
+    exclude: ['@ahsankhanamu/json-transformer'],
   },
   server: {
-    fs: { allow: ['..'] }
-  }
+    fs: { allow: ['..'] },
+  },
 });
