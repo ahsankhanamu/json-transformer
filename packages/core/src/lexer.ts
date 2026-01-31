@@ -131,7 +131,15 @@ export class Lexer {
       case ']': this.advance(); this.addToken(TokenType.RBRACKET, ']', start, startLine, startColumn); return;
       case '{': this.advance(); this.addToken(TokenType.LBRACE, '{', start, startLine, startColumn); return;
       case '}': this.advance(); this.addToken(TokenType.RBRACE, '}', start, startLine, startColumn); return;
-      case '$': this.advance(); this.addToken(TokenType.DOLLAR, '$', start, startLine, startColumn); return;
+      case '$':
+        // Check if this is a context variable like $index, $item, etc.
+        if (this.isIdentifierStart(this.peekNext()) || this.peekNext() === '$') {
+          // Let it fall through to identifier scanning
+          break;
+        }
+        this.advance();
+        this.addToken(TokenType.DOLLAR, '$', start, startLine, startColumn);
+        return;
       case '^': this.advance(); this.addToken(TokenType.CARET, '^', start, startLine, startColumn); return;
     }
 
@@ -391,7 +399,8 @@ export class Lexer {
   private isIdentifierStart(char: string): boolean {
     return (char >= 'a' && char <= 'z') ||
            (char >= 'A' && char <= 'Z') ||
-           char === '_';
+           char === '_' ||
+           char === '$';
   }
 
   private isIdentifierPart(char: string): boolean {

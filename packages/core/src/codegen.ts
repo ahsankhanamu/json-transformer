@@ -19,6 +19,8 @@ export interface CodeGenOptions {
   wrapInFunction?: boolean;
   /** Function name (if wrapping) */
   functionName?: string;
+  /** Generate native JS without helper dependencies */
+  native?: boolean;
 }
 
 const DEFAULT_OPTIONS: Required<CodeGenOptions> = {
@@ -29,6 +31,7 @@ const DEFAULT_OPTIONS: Required<CodeGenOptions> = {
   parentVar: 'parent',
   wrapInFunction: true,
   functionName: 'transform',
+  native: false,
 };
 
 export class CodeGenerator {
@@ -39,6 +42,10 @@ export class CodeGenerator {
 
   constructor(options: CodeGenOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    // Native mode overrides strict - can't have helper-based validation in native JS
+    if (this.options.native) {
+      this.options.strict = false;
+    }
   }
 
   private pushPath(segment: string): void {
@@ -250,6 +257,24 @@ export class CodeGenerator {
       return node.name;
     }
 
+    // Check for iteration context variables
+    // These are available when inside [*] or [?] iterations
+    switch (node.name) {
+      case '$item':
+        return 'item';
+      case '$index':
+      case '$i':
+        return 'index';
+      case '$array':
+        return 'arr';
+      case '$length':
+        return 'arr.length';
+      case '$first':
+        return '(index === 0)';
+      case '$last':
+        return '(index === arr.length - 1)';
+    }
+
     // Check if it's accessing the input
     const input = this.options.inputVar;
 
@@ -266,9 +291,9 @@ export class CodeGenerator {
       const array = this.generateExpression(node.object.object);
       if (this.options.strict) {
         const path = this.buildPathFromNode(node.object.object);
-        return `__helpers.strictMap(${array}, item => __helpers.strictGet(item, "${node.property}", "${path}[*]"), "${path}")`;
+        return `__helpers.strictMap(${array}, (item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[*]"), "${path}")`;
       }
-      return `(${array} ?? []).map(item => item?.${node.property})`;
+      return `(${array} ?? []).map((item, index, arr) => item?.${node.property})`;
     }
 
     const object = this.generateExpression(node.object);
@@ -281,6 +306,41 @@ export class CodeGenerator {
 
     const op = node.optional || !this.options.strict ? '?.' : '.';
     return `${object}${op}${node.property}`;
+  }
+
+  /**
+   * Try to extract a property path from an expression
+   * Returns the path string if it's a simple identifier or member chain, null otherwise
+   * e.g., price → "price", meta.priority → "meta.priority"
+   * Also supports dot-prefix: .price → "price", .meta.priority → "meta.priority"
+   */
+  private tryExtractPropertyPath(node: AST.Expression): string | null {
+    // Handle dot-prefix syntax: .price or .meta.priority
+    if (node.type === 'CurrentAccess') {
+      return node.path ?? null;
+    }
+
+    // Handle .prop.nested (CurrentAccess followed by MemberAccess chain)
+    if (node.type === 'MemberAccess' && !node.optional) {
+      if (node.object.type === 'CurrentAccess' && node.object.path) {
+        return `${node.object.path}.${node.property}`;
+      }
+      const objectPath = this.tryExtractPropertyPath(node.object);
+      if (objectPath !== null) {
+        return `${objectPath}.${node.property}`;
+      }
+    }
+
+    // Handle bare identifier: price
+    if (node.type === 'Identifier') {
+      // Only treat as path if not a local variable
+      if (this.localVariables.has(node.name)) {
+        return null;
+      }
+      return node.name;
+    }
+
+    return null;
   }
 
   /**
@@ -410,7 +470,7 @@ export class CodeGenerator {
     });
 
     const body = itemGen.generateExpression(predicate);
-    return `(item) => ${body}`;
+    return `(item, index, arr) => ${body}`;
   }
 
   private generateRootAccess(node: AST.RootAccess): string {
@@ -461,6 +521,36 @@ export class CodeGenerator {
     return `${bindings}?.${node.name}`;
   }
 
+  /**
+   * Check if an AST node can produce null/undefined (needs ?? '' for concat)
+   */
+  private canBeNullish(node: AST.Expression): boolean {
+    switch (node.type) {
+      case 'StringLiteral':
+      case 'NumberLiteral':
+      case 'BooleanLiteral':
+      case 'TemplateLiteral':
+      case 'ArrayLiteral':
+      case 'ObjectLiteral':
+        return false;
+      case 'BinaryExpression':
+        // Concat and arithmetic results are never null
+        if (node.operator === '&' || ['+', '-', '*', '/', '%'].includes(node.operator)) {
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Wrap expression for string concat - only add ?? '' if needed
+   */
+  private wrapForConcat(node: AST.Expression, generated: string): string {
+    return this.canBeNullish(node) ? `(${generated} ?? '')` : generated;
+  }
+
   private generateBinaryExpression(node: AST.BinaryExpression): string {
     const left = this.generateExpression(node.left);
     const right = this.generateExpression(node.right);
@@ -469,7 +559,9 @@ export class CodeGenerator {
 
     // Handle string concatenation with &
     if (op === '&') {
-      return `String(${left}) + String(${right})`;
+      const leftWrapped = this.wrapForConcat(node.left, left);
+      const rightWrapped = this.wrapForConcat(node.right, right);
+      return `${leftWrapped} + ${rightWrapped}`;
     }
 
     // Handle 'in' operator
@@ -502,14 +594,29 @@ export class CodeGenerator {
 
     // The right side should be a function call or identifier
     if (node.right.type === 'Identifier') {
+      const funcName = node.right.name;
+      // In native mode, try to generate native JS
+      if (this.options.native) {
+        const nativeCode = this.generateNativeHelperCall(funcName, [left]);
+        if (nativeCode) return nativeCode;
+      }
       // Call as function with left as first argument
-      return `__helpers.${node.right.name}(${left})`;
+      return `__helpers.${funcName}(${left})`;
     }
 
     if (node.right.type === 'CallExpression') {
       // Insert left as first argument
-      const callee = this.generateExpression(node.right.callee);
+      // If callee is an identifier, use its name directly for helper lookup
+      const callee = node.right.callee.type === 'Identifier'
+        ? node.right.callee.name
+        : this.generateExpression(node.right.callee);
       const args = node.right.arguments.map((a) => this.generateExpression(a));
+
+      // In native mode, try to generate native JS
+      if (this.options.native && node.right.callee.type === 'Identifier') {
+        const nativeCode = this.generateNativeHelperCall(callee, [left, ...args]);
+        if (nativeCode) return nativeCode;
+      }
       return `__helpers.${callee}(${left}, ${args.join(', ')})`;
     }
 
@@ -525,13 +632,201 @@ export class CodeGenerator {
     return `(${left} ?? ${right})`;
   }
 
+  /**
+   * Generate native JS code for a helper function call
+   * Returns null if no native equivalent available
+   */
+  private generateNativeHelperCall(funcName: string, args: string[], keyPath?: string): string | null {
+    // String functions
+    if (funcName === 'upper') return `String(${args[0]} ?? '').toUpperCase()`;
+    if (funcName === 'lower') return `String(${args[0]} ?? '').toLowerCase()`;
+    if (funcName === 'trim') return `String(${args[0]} ?? '').trim()`;
+    if (funcName === 'split') return `String(${args[0]} ?? '').split(${args[1] ?? '","'})`;
+    if (funcName === 'join') return `(${args[0]} ?? []).join(${args[1] ?? '","'})`;
+    if (funcName === 'substring') return `String(${args[0]} ?? '').substring(${args.slice(1).join(', ')})`;
+    if (funcName === 'replace') return `String(${args[0]} ?? '').replace(${args[1]}, ${args[2]})`;
+    if (funcName === 'replaceAll') return `String(${args[0]} ?? '').replaceAll(${args[1]}, ${args[2]})`;
+    if (funcName === 'startsWith') return `String(${args[0]} ?? '').startsWith(${args[1]})`;
+    if (funcName === 'endsWith') return `String(${args[0]} ?? '').endsWith(${args[1]})`;
+    if (funcName === 'contains') return `String(${args[0]} ?? '').includes(${args[1]})`;
+    if (funcName === 'padStart') return `String(${args[0]} ?? '').padStart(${args.slice(1).join(', ')})`;
+    if (funcName === 'padEnd') return `String(${args[0]} ?? '').padEnd(${args.slice(1).join(', ')})`;
+
+    // Math functions
+    if (funcName === 'round') return args.length > 1
+      ? `(Math.round(Number(${args[0]}) * Math.pow(10, ${args[1]})) / Math.pow(10, ${args[1]}))`
+      : `Math.round(Number(${args[0]}))`;
+    if (funcName === 'floor') return `Math.floor(Number(${args[0]}))`;
+    if (funcName === 'ceil') return `Math.ceil(Number(${args[0]}))`;
+    if (funcName === 'abs') return `Math.abs(Number(${args[0]}))`;
+    if (funcName === 'min') return `Math.min(...[${args.join(', ')}].flat())`;
+    if (funcName === 'max') return `Math.max(...[${args.join(', ')}].flat())`;
+
+    // Array functions
+    if (funcName === 'count') return `(${args[0]} ?? []).length`;
+    if (funcName === 'first') return `(${args[0]} ?? [])[0]`;
+    if (funcName === 'last') return `(${args[0]} ?? []).at(-1)`;
+    if (funcName === 'unique') return `[...new Set(${args[0]} ?? [])]`;
+    if (funcName === 'flatten') return `(${args[0]} ?? []).flat()`;
+    if (funcName === 'reverse') return `[...(${args[0]} ?? [])].reverse()`;
+    if (funcName === 'compact') return `(${args[0]} ?? []).filter(x => x != null)`;
+    if (funcName === 'take') return `(${args[0]} ?? []).slice(0, ${args[1]})`;
+    if (funcName === 'drop') return `(${args[0]} ?? []).slice(${args[1]})`;
+    if (funcName === 'sum') return `(${args[0]} ?? []).reduce((a, b) => a + Number(b || 0), 0)`;
+    if (funcName === 'avg') return `((arr) => arr.length ? arr.reduce((a, b) => a + Number(b || 0), 0) / arr.length : 0)(${args[0]} ?? [])`;
+
+    // Sort with key path
+    if (funcName === 'sort' && keyPath) {
+      const pathParts = keyPath.split('.');
+      const getValue = pathParts.length === 1
+        ? `item?.${keyPath}`
+        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      return `[...(${args[0]} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : aVal < bVal ? -1 : aVal > bVal ? 1 : 0; })`;
+    }
+    if (funcName === 'sortDesc' && keyPath) {
+      const pathParts = keyPath.split('.');
+      const getValue = pathParts.length === 1
+        ? `item?.${keyPath}`
+        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      return `[...(${args[0]} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : bVal < aVal ? -1 : bVal > aVal ? 1 : 0; })`;
+    }
+
+    // GroupBy with key path
+    if (funcName === 'groupBy' && keyPath) {
+      const pathParts = keyPath.split('.');
+      const getValue = pathParts.length === 1
+        ? `item?.${keyPath}`
+        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      return `(${args[0]} ?? []).reduce((acc, item) => { const key = String(${getValue}); (acc[key] = acc[key] || []).push(item); return acc; }, {})`;
+    }
+
+    // KeyBy with key path
+    if (funcName === 'keyBy' && keyPath) {
+      const pathParts = keyPath.split('.');
+      const getValue = pathParts.length === 1
+        ? `item?.${keyPath}`
+        : `((obj) => { ${pathParts.map((p, i) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+      return `(${args[0]} ?? []).reduce((acc, item) => { acc[String(${getValue})] = item; return acc; }, {})`;
+    }
+
+    // Object functions
+    if (funcName === 'keys') return `Object.keys(${args[0]} ?? {})`;
+    if (funcName === 'values') return `Object.values(${args[0]} ?? {})`;
+    if (funcName === 'entries') return `Object.entries(${args[0]} ?? {})`;
+    if (funcName === 'merge') return `Object.assign({}, ${args.join(', ')})`;
+
+    // Type functions
+    if (funcName === 'type') return `(v => v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)(${args[0]})`;
+    if (funcName === 'isString') return `typeof ${args[0]} === 'string'`;
+    if (funcName === 'isNumber') return `typeof ${args[0]} === 'number' && !isNaN(${args[0]})`;
+    if (funcName === 'isBoolean') return `typeof ${args[0]} === 'boolean'`;
+    if (funcName === 'isArray') return `Array.isArray(${args[0]})`;
+    if (funcName === 'isObject') return `${args[0]} !== null && typeof ${args[0]} === 'object' && !Array.isArray(${args[0]})`;
+    if (funcName === 'isNull') return `${args[0]} === null`;
+    if (funcName === 'isUndefined') return `${args[0]} === undefined`;
+    if (funcName === 'isEmpty') return `((v) => v == null || (typeof v === 'string' && v.length === 0) || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && Object.keys(v).length === 0))(${args[0]})`;
+
+    // Conversion functions
+    if (funcName === 'toString') return `(${args[0]} == null ? '' : typeof ${args[0]} === 'object' ? JSON.stringify(${args[0]}) : String(${args[0]}))`;
+    if (funcName === 'toNumber') return `Number(${args[0]}) || 0`;
+    if (funcName === 'toBoolean') return `Boolean(${args[0]})`;
+    if (funcName === 'toArray') return `(${args[0]} == null ? [] : Array.isArray(${args[0]}) ? ${args[0]} : [${args[0]}])`;
+    if (funcName === 'toJSON') return `JSON.stringify(${args[0]})`;
+    if (funcName === 'fromJSON') return `JSON.parse(${args[0]})`;
+
+    // Utility
+    if (funcName === 'coalesce') return `[${args.join(', ')}].find(v => v != null)`;
+
+    return null;
+  }
+
+  /**
+   * Generate native JS for array methods called on SpreadAccess: arr[].sort(key)
+   */
+  private generateNativeArrayMethod(array: string, method: string, keyPath: string): string {
+    const pathParts = keyPath.split('.');
+    const getValue = pathParts.length === 1
+      ? `item?.${keyPath}`
+      : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+
+    if (method === 'sort') {
+      return `[...(${array} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : aVal < bVal ? -1 : aVal > bVal ? 1 : 0; })`;
+    }
+
+    if (method === 'sortDesc') {
+      return `[...(${array} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : bVal < aVal ? -1 : bVal > aVal ? 1 : 0; })`;
+    }
+
+    if (method === 'groupBy') {
+      return `(${array} ?? []).reduce((acc, item) => { const key = String(${getValue}); (acc[key] = acc[key] || []).push(item); return acc; }, {})`;
+    }
+
+    if (method === 'keyBy') {
+      return `(${array} ?? []).reduce((acc, item) => { acc[String(${getValue})] = item; return acc; }, {})`;
+    }
+
+    // Fallback - shouldn't reach here
+    return `(${array} ?? []).${method}("${keyPath}")`;
+  }
+
   private generateCallExpression(node: AST.CallExpression): string {
     const args = node.arguments.map((a) => this.generateExpression(a));
 
     // Check if callee is a built-in helper (identifier without dots)
     if (node.callee.type === 'Identifier') {
       const funcName = node.callee.name;
+
+      // In native mode, try to generate native JS
+      if (this.options.native) {
+        const nativeCode = this.generateNativeHelperCall(funcName, args);
+        if (nativeCode) return nativeCode;
+      }
+
       return `__helpers.${funcName}(${args.join(', ')})`;
+    }
+
+    // Handle SpreadAccess.method() pattern: arr[*].map(fn) or arr[].filter(fn)
+    // This should call the method on the array, not map over items
+    if (node.callee.type === 'MemberAccess' && node.callee.object.type === 'SpreadAccess') {
+      const array = this.generateExpression(node.callee.object.object);
+      const method = node.callee.property;
+
+      // Special handling for sort/sortDesc/groupBy/keyBy with key argument
+      // e.g., orders[].sort(price) → __helpers.sort(orders, "price")
+      // e.g., orders[].sort(meta.priority) → __helpers.sort(orders, "meta.priority")
+      // e.g., orders[].sort("price") → __helpers.sort(orders, "price")
+      const helperMethods = ['sort', 'sortDesc', 'groupBy', 'keyBy'];
+      if (helperMethods.includes(method) && node.arguments.length === 1) {
+        const arg = node.arguments[0];
+        let keyPath: string | null = null;
+
+        // Handle string literal: orders[].sort("price")
+        if (arg.type === 'StringLiteral') {
+          keyPath = arg.value;
+        } else {
+          // Handle bare identifier or member access: orders[].sort(price) or orders[].sort(meta.priority)
+          keyPath = this.tryExtractPropertyPath(arg);
+        }
+
+        if (keyPath !== null) {
+          // Native mode: generate pure JS without helpers
+          if (this.options.native) {
+            return this.generateNativeArrayMethod(array, method, keyPath);
+          }
+
+          if (this.options.strict) {
+            const path = this.buildPathFromNode(node.callee.object.object);
+            return `__helpers.${method}(__helpers.strictArray(${array}, "${path}"), "${keyPath}")`;
+          }
+          return `__helpers.${method}(${array} ?? [], "${keyPath}")`;
+        }
+      }
+
+      if (this.options.strict) {
+        const path = this.buildPathFromNode(node.callee.object.object);
+        return `__helpers.strictArray(${array}, "${path}").${method}(${args.join(', ')})`;
+      }
+      return `(${array} ?? []).${method}(${args.join(', ')})`;
     }
 
     const callee = this.generateExpression(node.callee);
@@ -540,11 +835,21 @@ export class CodeGenerator {
 
   private generateArrowFunction(node: AST.ArrowFunction): string {
     const params = node.params.map((p) => p.name).join(', ');
+
+    // Save current local variables
+    const savedLocals = new Set(this.localVariables);
+
+    // Register arrow function parameters as local variables
+    for (const param of node.params) {
+      this.localVariables.add(param.name);
+    }
+
+    // Generate body with params registered as locals
     const body = this.generateExpression(node.body);
 
-    if (node.params.length === 1) {
-      return `(${params}) => ${body}`;
-    }
+    // Restore previous local variables
+    this.localVariables = savedLocals;
+
     return `(${params}) => ${body}`;
   }
 

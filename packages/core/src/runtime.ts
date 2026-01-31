@@ -492,9 +492,23 @@ export function sort<T>(arr: T[], key?: string | ((item: T) => unknown)): T[] {
   }
 
   if (typeof key === 'string') {
+    // Support nested paths like "meta.priority"
+    const getNestedValue = (obj: unknown, path: string): unknown => {
+      const keys = path.split('.');
+      let current: unknown = obj;
+      for (const k of keys) {
+        if (current == null || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[k];
+      }
+      return current;
+    };
+
     return sorted.sort((a, b) => {
-      const aVal = (a as any)[key];
-      const bVal = (b as any)[key];
+      const aVal = getNestedValue(a, key);
+      const bVal = getNestedValue(b, key);
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
       if (aVal < bVal) return -1;
       if (aVal > bVal) return 1;
       return 0;
@@ -504,6 +518,9 @@ export function sort<T>(arr: T[], key?: string | ((item: T) => unknown)): T[] {
   return sorted.sort((a, b) => {
     const aVal = key(a) as string | number;
     const bVal = key(b) as string | number;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
     if (aVal < bVal) return -1;
     if (aVal > bVal) return 1;
     return 0;
@@ -517,8 +534,19 @@ export function sortDesc<T>(arr: T[], key?: string | ((item: T) => unknown)): T[
 export function groupBy<T>(arr: T[], key: string | ((item: T) => string)): Record<string, T[]> {
   if (!Array.isArray(arr)) return {};
 
+  // Support nested paths like "meta.priority"
+  const getValue = (obj: unknown, path: string): unknown => {
+    const keys = path.split('.');
+    let current: unknown = obj;
+    for (const k of keys) {
+      if (current == null || typeof current !== 'object') return undefined;
+      current = (current as Record<string, unknown>)[k];
+    }
+    return current;
+  };
+
   return arr.reduce((acc, item) => {
-    const groupKey = typeof key === 'string' ? String((item as any)[key]) : key(item);
+    const groupKey = typeof key === 'string' ? String(getValue(item, key)) : key(item);
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(item);
     return acc;
@@ -528,8 +556,19 @@ export function groupBy<T>(arr: T[], key: string | ((item: T) => string)): Recor
 export function keyBy<T>(arr: T[], key: string | ((item: T) => string)): Record<string, T> {
   if (!Array.isArray(arr)) return {};
 
+  // Support nested paths like "meta.id"
+  const getValue = (obj: unknown, path: string): unknown => {
+    const keys = path.split('.');
+    let current: unknown = obj;
+    for (const k of keys) {
+      if (current == null || typeof current !== 'object') return undefined;
+      current = (current as Record<string, unknown>)[k];
+    }
+    return current;
+  };
+
   return arr.reduce((acc, item) => {
-    const k = typeof key === 'string' ? String((item as any)[key]) : key(item);
+    const k = typeof key === 'string' ? String(getValue(item, key)) : key(item);
     acc[k] = item;
     return acc;
   }, {} as Record<string, T>);

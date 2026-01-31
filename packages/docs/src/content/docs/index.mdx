@@ -1,0 +1,58 @@
+---
+title: JSON Transformer
+description: A lightweight JSON query and transformation language that compiles to JavaScript.
+template: splash
+hero:
+  tagline: Query and transform JSON with a powerful, intuitive expression language
+  actions:
+    - text: Get Started
+      link: /guides/introduction
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/ahsankhanamu/json-transformer
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid stagger>
+  <Card title="Simple Syntax" icon="pencil">
+    Intuitive property access, array operations, and transformations with minimal syntax.
+  </Card>
+  <Card title="Compiles to JavaScript" icon="rocket">
+    Expressions compile to native JavaScript for maximum performance and portability.
+  </Card>
+  <Card title="Rich Built-in Functions" icon="setting">
+    String, math, array, and object manipulation functions out of the box.
+  </Card>
+  <Card title="Type Safe" icon="approve-check">
+    Optional strict mode catches errors at runtime with helpful messages.
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```javascript
+import { evaluate } from '@ahsankhanamu/json-transformer';
+
+const data = {
+  user: { name: 'John', age: 30 },
+  orders: [
+    { product: 'Widget', price: 25.99 },
+    { product: 'Gadget', price: 49.99 }
+  ]
+};
+
+// Property access
+evaluate('user.name', data);                    // "John"
+
+// Array operations
+evaluate('orders[].product', data);             // ["Widget", "Gadget"]
+evaluate('orders[? .price > 30]', data);        // [{ product: 'Gadget', ... }]
+
+// Transformations
+evaluate('user.name | upper', data);            // "JOHN"
+```

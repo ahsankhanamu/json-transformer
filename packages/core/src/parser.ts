@@ -283,6 +283,11 @@ export class Parser {
       return { type: 'SpreadAccess', object };
     }
 
+    // Check for empty brackets [] - shorthand for [*]
+    if (this.match(TokenType.RBRACKET)) {
+      return { type: 'SpreadAccess', object };
+    }
+
     // Check for filter: [? predicate] or just [predicate] where predicate is boolean
     if (this.match(TokenType.QUESTION)) {
       const predicate = this.parseExpression();
@@ -292,14 +297,12 @@ export class Parser {
 
     // Check for slice: [start:end]
     let start: AST.Expression | null = null;
-    let hasColon = false;
 
     if (!this.check(TokenType.COLON) && !this.check(TokenType.RBRACKET)) {
       start = this.parseExpression();
     }
 
     if (this.match(TokenType.COLON)) {
-      hasColon = true;
       let end: AST.Expression | null = null;
       if (!this.check(TokenType.RBRACKET)) {
         end = this.parseExpression();
@@ -311,7 +314,8 @@ export class Parser {
     // Regular index access
     this.consume(TokenType.RBRACKET, 'Expected "]" after index');
     if (!start) {
-      throw new ParseError('Expected expression in brackets', this.peek());
+      // Safety fallback - shouldn't reach here since [] is handled above
+      return { type: 'SpreadAccess', object };
     }
     return { type: 'IndexAccess', object, index: start, optional };
   }

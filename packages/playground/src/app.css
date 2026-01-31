@@ -1,0 +1,261 @@
+@import "tailwindcss";
+
+:root {
+  /* Dark theme as default - matching adeo-data-mapper */
+  --color-bg: #121218;
+  --color-bg-secondary: #1c1c24;
+  --color-bg-tertiary: #2e2e3a;
+  --color-text: #f0f0f5;
+  --color-text-secondary: #b8b8c5;
+  --color-text-muted: #606078;
+  --color-border: #363645;
+  --color-accent: #5b9fff;
+  --color-accent-hover: #7bb3ff;
+  --color-success: #50e080;
+  --color-error: #ff7b7b;
+  --color-warning: #ffb938;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Theme transitions */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* CodeMirror dark theme overrides */
+.cm-editor {
+  height: 100%;
+  font-size: 13px;
+  background-color: var(--color-bg-secondary) !important;
+}
+
+.cm-editor .cm-gutters {
+  background-color: var(--color-bg) !important;
+  border-right: 1px solid var(--color-border) !important;
+  color: var(--color-text-muted) !important;
+}
+
+.cm-editor .cm-activeLineGutter {
+  background-color: var(--color-accent) !important;
+  color: var(--color-text) !important;
+}
+
+.cm-editor .cm-activeLine {
+  background-color: rgba(91, 159, 255, 0.15) !important;
+}
+
+.cm-editor .cm-content {
+  color: var(--color-text) !important;
+  caret-color: var(--color-text) !important;
+}
+
+.cm-editor .cm-cursor {
+  border-left-color: var(--color-text) !important;
+}
+
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-content ::selection {
+  background-color: rgba(91, 159, 255, 0.3) !important;
+}
+
+.cm-editor.cm-focused .cm-selectionBackground {
+  background-color: rgba(91, 159, 255, 0.4) !important;
+}
+
+.cm-editor .cm-placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* JSON syntax highlighting - theme aware (matching adeo-data-mapper) */
+:root {
+  /* Dark theme syntax */
+  --syntax-string: #5fe8b8;
+  --syntax-number: #5b9fff;
+  --syntax-bool: #b88fff;
+  --syntax-property: #ffd070;
+}
+
+:root.light {
+  --syntax-string: #047857;
+  --syntax-number: #3b82f6;
+  --syntax-bool: #7c3aed;
+  --syntax-property: #d97706;
+}
+
+:root.midnight {
+  --syntax-string: #5eead4;
+  --syntax-number: #22d3ee;
+  --syntax-bool: #e879f9;
+  --syntax-property: #fdba74;
+}
+
+.cm-editor .tok-string {
+  color: var(--syntax-string) !important;
+}
+
+.cm-editor .tok-number {
+  color: var(--syntax-number) !important;
+}
+
+.cm-editor .tok-bool,
+.cm-editor .tok-null {
+  color: var(--syntax-bool) !important;
+}
+
+.cm-editor .tok-propertyName {
+  color: var(--syntax-property) !important;
+}
+
+.cm-editor .tok-punctuation {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Tab styles */
+.tab {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s ease;
+  font-size: 11px;
+}
+
+.tab:hover {
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+}
+
+.tab.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* Panel styles */
+.panel {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--color-bg-tertiary);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle.active {
+  background: var(--color-accent);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.toggle.active::after {
+  transform: translateX(20px);
+}
+
+/* Status indicator */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.valid {
+  background: var(--color-success);
+}
+
+.status-dot.invalid {
+  background: var(--color-error);
+}
+
+/* Button */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.btn-primary:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}

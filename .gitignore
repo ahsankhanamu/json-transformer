@@ -1,16 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
-*.js
-*.d.ts
-*.js.map
-
-# Keep source files
-!src/**/*.ts
-!test/**/*.ts
-!jest.config.js
+# Build outputs
+packages/*/dist/
+packages/*/.svelte-kit/
+packages/docs/.astro/
 
 # IDE
 .idea/
@@ -32,3 +26,9 @@ coverage/
 # Environment
 .env
 .env.local
+
+# Lock files (keep root only)
+packages/*/package-lock.json
+
+# Local docs
+docs-local/

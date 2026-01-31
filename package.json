@@ -1,24 +1,19 @@
 {
-  "name": "mapql",
-  "version": "0.1.0",
-  "description": "JSON Query and Transformation Language that compiles to JavaScript",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "name": "mapql-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "playground": "npx tsx src/playground.ts"
+    "build": "npm run build -w @ahsankhanamu/json-transformer",
+    "build:all": "npm run build -w @ahsankhanamu/json-transformer && npm run build -w json-transformer-playground && npm run build -w json-transformer-docs",
+    "dev": "npm run dev -w json-transformer-playground",
+    "dev:docs": "npm run dev -w json-transformer-docs",
+    "test": "npm run test -w @ahsankhanamu/json-transformer",
+    "clean": "rm -rf packages/*/dist packages/*/.svelte-kit"
   },
-  "keywords": ["json", "query", "transformation", "parser", "compiler"],
-  "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.11.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
-    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
