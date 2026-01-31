@@ -3,6 +3,7 @@
   import * as prettierBabel from 'prettier/plugins/babel';
   import * as prettierEstree from 'prettier/plugins/estree';
   import CodeViewer from './CodeViewer.svelte';
+  import CodeEditor from './CodeEditor.svelte';
 
   let {
     activeTab = $bindable('preview'),
@@ -160,18 +161,14 @@
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}
     {:else if activeTab === 'js'}
-      {#if formattedJs}
-        <CodeViewer code={formattedJs} lang="javascript" />
-      {:else if generatedJs}
-        <CodeViewer code={generatedJs} lang="javascript" />
+      {#if formattedJs || generatedJs}
+        <CodeEditor value={formattedJs || generatedJs} lang="javascript" readonly={true} />
       {:else}
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}
     {:else if activeTab === 'native'}
-      {#if formattedNativeJs}
-        <CodeViewer code={formattedNativeJs} lang="javascript" />
-      {:else if nativeJs}
-        <CodeViewer code={nativeJs} lang="javascript" />
+      {#if formattedNativeJs || nativeJs}
+        <CodeEditor value={formattedNativeJs || nativeJs} lang="javascript" readonly={true} />
       {:else}
         <div class="text-[var(--color-text-muted)]">Invalid expression</div>
       {/if}

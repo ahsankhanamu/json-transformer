@@ -912,7 +912,7 @@ export class CodeGenerator {
     if (funcName === 'lower') return `String(${args[0]} ?? '').toLowerCase()`;
     if (funcName === 'trim') return `String(${args[0]} ?? '').trim()`;
     if (funcName === 'split') return `String(${args[0]} ?? '').split(${args[1] ?? '","'})`;
-    if (funcName === 'join') return `(${args[0]} ?? []).join(${args[1] ?? '","'})`;
+    if (funcName === 'join') return `${args[0]}?.join(${args[1] ?? '","'}) ?? ''`;
     if (funcName === 'substring')
       return `String(${args[0]} ?? '').substring(${args.slice(1).join(', ')})`;
     if (funcName === 'replace') return `String(${args[0]} ?? '').replace(${args[1]}, ${args[2]})`;
@@ -937,26 +937,26 @@ export class CodeGenerator {
     if (funcName === 'min') return `Math.min(...[${args.join(', ')}].flat())`;
     if (funcName === 'max') return `Math.max(...[${args.join(', ')}].flat())`;
 
-    // Array functions - native methods with callbacks
-    if (funcName === 'map') return `(${args[0]} ?? []).map(${args[1]})`;
-    if (funcName === 'filter') return `(${args[0]} ?? []).filter(${args[1]})`;
-    if (funcName === 'find') return `(${args[0]} ?? []).find(${args[1]})`;
-    if (funcName === 'some') return `(${args[0]} ?? []).some(${args[1]})`;
-    if (funcName === 'every') return `(${args[0]} ?? []).every(${args[1]})`;
+    // Array functions - native methods with callbacks (use ?. for clean chaining)
+    if (funcName === 'map') return `${args[0]}?.map(${args[1]})`;
+    if (funcName === 'filter') return `${args[0]}?.filter(${args[1]})`;
+    if (funcName === 'find') return `${args[0]}?.find(${args[1]})`;
+    if (funcName === 'some') return `${args[0]}?.some(${args[1]})`;
+    if (funcName === 'every') return `${args[0]}?.every(${args[1]})`;
     if (funcName === 'reduce')
       return `(${args[0]} ?? []).reduce(${args[1]}, ${args[2] ?? 'undefined'})`;
 
-    // Array functions - simple
-    if (funcName === 'count') return `(${args[0]} ?? []).length`;
-    if (funcName === 'first') return `(${args[0]} ?? [])[0]`;
-    if (funcName === 'last') return `(${args[0]} ?? []).at(-1)`;
+    // Array functions - simple (use ?. for clean chaining)
+    if (funcName === 'count') return `${args[0]}?.length ?? 0`;
+    if (funcName === 'first') return `${args[0]}?.[0]`;
+    if (funcName === 'last') return `${args[0]}?.at(-1)`;
     if (funcName === 'unique') return `[...new Set(${args[0]} ?? [])]`;
-    if (funcName === 'flatten') return `(${args[0]} ?? []).flat()`;
+    if (funcName === 'flatten') return `${args[0]}?.flat()`;
     if (funcName === 'reverse') return `[...(${args[0]} ?? [])].reverse()`;
-    if (funcName === 'compact') return `(${args[0]} ?? []).filter(x => x != null)`;
-    if (funcName === 'take') return `(${args[0]} ?? []).slice(0, ${args[1]})`;
-    if (funcName === 'drop') return `(${args[0]} ?? []).slice(${args[1]})`;
-    if (funcName === 'sum') return `(${args[0]} ?? []).reduce((a, b) => a + Number(b || 0), 0)`;
+    if (funcName === 'compact') return `${args[0]}?.filter(x => x != null)`;
+    if (funcName === 'take') return `${args[0]}?.slice(0, ${args[1]})`;
+    if (funcName === 'drop') return `${args[0]}?.slice(${args[1]})`;
+    if (funcName === 'sum') return `${args[0]}?.reduce((a, b) => a + Number(b || 0), 0) ?? 0`;
     if (funcName === 'avg')
       return `((arr) => arr.length ? arr.reduce((a, b) => a + Number(b || 0), 0) / arr.length : 0)(${args[0]} ?? [])`;
 
