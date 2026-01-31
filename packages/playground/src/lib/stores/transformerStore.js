@@ -3,6 +3,79 @@ import { writable, derived } from 'svelte/store';
 // JSON Transformer module reference
 let transformerModule = null;
 
+/**
+ * Extract all property paths from a JSON object for autocomplete
+ * @param {any} obj - The object to extract paths from
+ * @param {string} prefix - Current path prefix
+ * @param {Set} seen - Set of seen objects (for cycle detection)
+ * @returns {Array<{path: string, type: string, detail: string}>}
+ */
+function extractPaths(obj, prefix = '', seen = new WeakSet()) {
+  const paths = [];
+
+  if (obj === null || obj === undefined) return paths;
+  if (typeof obj !== 'object') return paths;
+  if (seen.has(obj)) return paths; // Prevent cycles
+  seen.add(obj);
+
+  if (Array.isArray(obj)) {
+    // For arrays, add [] accessor and sample first element's paths
+    if (obj.length > 0) {
+      const sample = obj[0];
+      const sampleType = sample === null ? 'null' : typeof sample;
+
+      // Add [0] for index access
+      paths.push({
+        path: prefix + '[0]',
+        type: 'property',
+        detail: `${sampleType} (first element)`,
+      });
+
+      // Add [] for spread/map access
+      paths.push({
+        path: prefix + '[]',
+        type: 'property',
+        detail: `array[${obj.length}]`,
+      });
+
+      // Add [*] for spread access
+      paths.push({
+        path: prefix + '[*]',
+        type: 'property',
+        detail: `spread array[${obj.length}]`,
+      });
+
+      // Extract paths from first element (for object arrays)
+      if (typeof sample === 'object' && sample !== null) {
+        const childPaths = extractPaths(sample, prefix + '[].', seen);
+        paths.push(...childPaths);
+      }
+    }
+  } else {
+    // For objects, extract each property
+    for (const key of Object.keys(obj)) {
+      const value = obj[key];
+      const fullPath = prefix ? `${prefix}${key}` : key;
+      const valueType = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+
+      // Add the property path
+      paths.push({
+        path: fullPath,
+        type: 'property',
+        detail: valueType === 'array' ? `array[${value.length}]` : valueType,
+      });
+
+      // Recursively extract nested paths
+      if (typeof value === 'object' && value !== null) {
+        const childPaths = extractPaths(value, fullPath + '.', seen);
+        paths.push(...childPaths);
+      }
+    }
+  }
+
+  return paths;
+}
+
 // Core stores
 export const inputJson = writable(`{
   "user": {
@@ -47,6 +120,12 @@ export const parsedInput = derived(inputJson, ($inputJson) => {
   } catch (e) {
     return { success: false, error: e.message };
   }
+});
+
+// Extract input paths for autocomplete (computed once when input changes)
+export const inputPaths = derived(parsedInput, ($parsedInput) => {
+  if (!$parsedInput.success) return [];
+  return extractPaths($parsedInput.data);
 });
 
 export const validationResult = derived(

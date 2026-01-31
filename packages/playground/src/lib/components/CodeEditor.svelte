@@ -16,11 +16,58 @@
     placeholder: _placeholder = '',
     readonly = false,
     onchange = () => {},
+    inputPaths = [],
   } = $props();
 
   let editorContainer;
   let editorView;
   const languageConf = new Compartment();
+
+  // Create input path autocomplete source (property suggestions from input JSON)
+  function inputPathCompletions(context) {
+    // Match property paths: word, word.word, word[].word, etc.
+    const pathMatch = context.matchBefore(/[\w$][\w$.[\]]*$/);
+    if (!pathMatch || inputPaths.length === 0) return null;
+
+    const typed = pathMatch.text.toLowerCase();
+    const options = [];
+
+    for (const p of inputPaths) {
+      const pathLower = p.path.toLowerCase();
+      // Match if typed text is a prefix of the path
+      if (pathLower.startsWith(typed)) {
+        options.push({
+          label: p.path,
+          type: p.type,
+          detail: p.detail,
+          boost: 2, // Boost input paths above functions
+        });
+      }
+      // Also match if last segment matches (for nested access)
+      else if (typed.includes('.')) {
+        const lastDot = typed.lastIndexOf('.');
+        const afterDot = typed.slice(lastDot + 1);
+        const pathAfterDot = p.path.includes('.')
+          ? p.path.slice(p.path.lastIndexOf('.') + 1)
+          : p.path;
+        if (pathAfterDot.toLowerCase().startsWith(afterDot)) {
+          options.push({
+            label: p.path,
+            type: p.type,
+            detail: p.detail,
+          });
+        }
+      }
+    }
+
+    if (options.length === 0) return null;
+
+    return {
+      from: pathMatch.from,
+      options,
+      validFor: /^[\w$.[\]]*$/,
+    };
+  }
 
   // Create transformer expression autocomplete source
   function transformerCompletions(context) {
@@ -120,7 +167,7 @@
         return [
           javascript(),
           autocompletion({
-            override: [transformerCompletions, dotCompletions],
+            override: [inputPathCompletions, transformerCompletions, dotCompletions],
             icons: true,
             optionClass: (completion) => `cm-completion-${completion.type}`,
           }),
