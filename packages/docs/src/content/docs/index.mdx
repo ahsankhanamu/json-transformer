@@ -3,35 +3,45 @@ title: JSON Transformer
 description: A lightweight JSON query and transformation language that compiles to JavaScript.
 template: splash
 hero:
-  tagline: Query and transform JSON with a powerful, intuitive expression language
+  tagline: Query, filter, and transform JSON data with an intuitive expression language that compiles to native JavaScript.
   actions:
     - text: Get Started
       link: /guides/introduction
       icon: right-arrow
-    - text: View on GitHub
+    - text: GitHub
       link: https://github.com/ahsankhanamu/json-transformer
       icon: external
       variant: minimal
+      attrs:
+        target: _blank
+        rel: noopener
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
+import CodeCompare from '../../components/CodeCompare.astro';
 
-## Features
+## Why JSON Transformer?
 
-<CardGrid stagger>
-  <Card title="Simple Syntax" icon="pencil">
-    Intuitive property access, array operations, and transformations with minimal syntax.
+<CardGrid>
+  <Card title="Intuitive Syntax" icon="pencil">
+    Write expressions like `user.name` or `orders[? .price > 100]`. No verbose APIs needed.
   </Card>
-  <Card title="Compiles to JavaScript" icon="rocket">
-    Expressions compile to native JavaScript for maximum performance and portability.
+  <Card title="Blazing Fast" icon="rocket">
+    Compiles to native JavaScript. Cache once, run millions of times.
   </Card>
-  <Card title="Rich Built-in Functions" icon="setting">
-    String, math, array, and object manipulation functions out of the box.
+  <Card title="50+ Functions" icon="setting">
+    String, math, array, date functions — everything out of the box.
   </Card>
   <Card title="Type Safe" icon="approve-check">
-    Optional strict mode catches errors at runtime with helpful messages.
+    Strict mode catches errors with helpful messages.
   </Card>
 </CardGrid>
+
+## Install
+
+```bash
+npm install @ahsankhanamu/json-transformer
+```
 
 ## Quick Example
 
@@ -39,20 +49,106 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 import { evaluate } from '@ahsankhanamu/json-transformer';
 
 const data = {
-  user: { name: 'John', age: 30 },
+  user: { name: 'John', role: 'admin' },
   orders: [
     { product: 'Widget', price: 25.99 },
-    { product: 'Gadget', price: 49.99 }
+    { product: 'Gadget', price: 49.99 },
+    { product: 'Gizmo', price: 15.00 }
   ]
 };
-
-// Property access
-evaluate('user.name', data);                    // "John"
-
-// Array operations
-evaluate('orders[].product', data);             // ["Widget", "Gadget"]
-evaluate('orders[? .price > 30]', data);        // [{ product: 'Gadget', ... }]
-
-// Transformations
-evaluate('user.name | upper', data);            // "JOHN"
 ```
+
+<CodeCompare leftLabel="Expression" rightLabel="Result → Compiled JS">
+  <Fragment slot="left">
+```
+user.name
+```
+  </Fragment>
+  <Fragment slot="right">
+```javascript
+"John"  →  input?.user?.name
+```
+  </Fragment>
+</CodeCompare>
+
+<CodeCompare>
+  <Fragment slot="left">
+```
+orders[].price | sum
+```
+  </Fragment>
+  <Fragment slot="right">
+```javascript
+90.98  →  __helpers.sum(
+            (input?.orders ?? []).map(i => i?.price)
+          )
+```
+  </Fragment>
+</CodeCompare>
+
+<CodeCompare>
+  <Fragment slot="left">
+```
+orders[? .price > 20][].product
+```
+  </Fragment>
+  <Fragment slot="right">
+```javascript
+["Widget", "Gadget"]  →  (input?.orders ?? [])
+                           .filter(i => i?.price > 20)
+                           .map(i => i?.product)
+```
+  </Fragment>
+</CodeCompare>
+
+## Export to JavaScript
+
+Expressions compile to clean, readable JavaScript:
+
+<CodeCompare leftLabel="Expression" rightLabel="Compiled Output">
+  <Fragment slot="left">
+```
+orders[? .price > 20][].product | upper
+```
+  </Fragment>
+  <Fragment slot="right">
+```javascript
+(input) => {
+  return (input?.orders ?? [])
+    .filter(i => i?.price > 20)
+    .map(i => i?.product?.toUpperCase());
+}
+```
+  </Fragment>
+</CodeCompare>
+
+Use `compile()` to get a reusable function, or `toJavaScript()` to get the source code:
+
+```javascript
+import { compile, toJavaScript } from '@ahsankhanamu/json-transformer';
+
+const fn = compile('orders[? .price > 20][].product');
+fn(data); // ["Widget", "Gadget"]
+
+toJavaScript('user.name | upper');
+// "(input) => input?.user?.name?.toUpperCase()"
+```
+
+## More Features
+
+<CardGrid>
+  <Card title="Array Operations" icon="list-format">
+    Filter, map, slice, sort, group — all with clean syntax.
+  </Card>
+  <Card title="Pipe Chains" icon="right-arrow">
+    Chain transforms: `name | trim | upper | split(" ")`
+  </Card>
+  <Card title="Templates" icon="document">
+    Embed expressions: `` `Hello ${user.name}!` ``
+  </Card>
+  <Card title="Code Gen" icon="seti:javascript">
+    Export as standalone JavaScript functions.
+  </Card>
+</CardGrid>
+
+**[Get Started →](/guides/introduction)**

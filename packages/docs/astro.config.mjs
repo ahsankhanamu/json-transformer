@@ -5,10 +5,23 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'JSON Transformer',
-      description: 'JSON Query and Transformation Language',
+      description: 'JSON Query and Transformation Language that compiles to JavaScript',
       social: {
         github: 'https://github.com/ahsankhanamu/json-transformer',
       },
+      head: [
+        {
+          tag: 'script',
+          content: `document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.social-icons a, a[href*="github.com"]').forEach(a => {
+              a.setAttribute('target', '_blank');
+              a.setAttribute('rel', 'noopener');
+            });
+          });`,
+        },
+      ],
+      customCss: ['./src/styles/custom.css'],
+      tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
       sidebar: [
         {
           label: 'Getting Started',
