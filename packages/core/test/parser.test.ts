@@ -2,7 +2,7 @@
  * MapQL Parser Tests
  */
 
-import { compile, evaluate, validate, toJavaScript } from '../src/index.js';
+import { evaluate, validate, toJavaScript } from '../src/index.js';
 
 describe('MapQL Parser', () => {
   const testData = {
@@ -16,7 +16,7 @@ describe('MapQL Parser', () => {
     orders: [
       { id: 1, product: 'Widget', price: 25.99, quantity: 2, status: 'shipped' },
       { id: 2, product: 'Gadget', price: 49.99, quantity: 1, status: 'pending' },
-      { id: 3, product: 'Gizmo', price: 15.00, quantity: 5, status: 'shipped' },
+      { id: 3, product: 'Gizmo', price: 15.0, quantity: 5, status: 'shipped' },
     ],
     tags: ['electronics', 'sale', 'featured'],
   };
@@ -131,6 +131,83 @@ describe('MapQL Parser', () => {
 
     test('chained pipes', () => {
       expect(evaluate('"  HELLO  " | lower | trim', {})).toBe('hello');
+    });
+  });
+
+  describe('Pipe Property Access (jq-style)', () => {
+    test('.field after pipe', () => {
+      const result = evaluate('{ name: "test" } | .name', {});
+      expect(result).toBe('test');
+    });
+
+    test('.[index] after pipe', () => {
+      const result = evaluate('[1, 2, 3] | .[1]', {});
+      expect(result).toBe(2);
+    });
+
+    test('[index] after pipe (without dot)', () => {
+      const result = evaluate('[1, 2, 3] | [1]', {});
+      expect(result).toBe(2);
+    });
+
+    test('chain pipe property access', () => {
+      const result = evaluate('{ items: [{ x: 1 }] } | .items | .[0] | .x', {});
+      expect(result).toBe(1);
+    });
+
+    test('method call on pipe context', () => {
+      const result = evaluate('"hello" | .toUpperCase()', {});
+      expect(result).toBe('HELLO');
+    });
+
+    test('mix function pipes with property access', () => {
+      const result = evaluate('"  hello  " | trim | .toUpperCase()', {});
+      expect(result).toBe('HELLO');
+    });
+
+    test('access nested property with data', () => {
+      const result = evaluate('orders.find(x => x.id === 3) | .status', testData);
+      expect(result).toBe('shipped');
+    });
+
+    test('access first element then property', () => {
+      const result = evaluate('orders | .[0] | .product', testData);
+      expect(result).toBe('Widget');
+    });
+
+    test('split and access index', () => {
+      const result = evaluate('"hello" | .split("") | .[0]', {});
+      expect(result).toBe('h');
+    });
+
+    test('chain multiple method calls', () => {
+      const result = evaluate('"hello world" | .split(" ") | .[0] | .toUpperCase()', {});
+      expect(result).toBe('HELLO');
+    });
+
+    test('pipe property access followed by function pipe', () => {
+      const result = evaluate('user | .firstName | upper', testData);
+      expect(result).toBe('JOHN');
+    });
+
+    test('nested object access via pipe', () => {
+      const result = evaluate('user | .address | .city', testData);
+      expect(result).toBe('New York');
+    });
+
+    test('function pipe with index access', () => {
+      const result = evaluate('"a,b,c" | split(",")[1]', {});
+      expect(result).toBe('b');
+    });
+
+    test('chained pipe property then function with index', () => {
+      const result = evaluate('orders.find(x => x.id === 1) | .status | split(" ")[0]', testData);
+      expect(result).toBe('shipped');
+    });
+
+    test('function pipe with slice access', () => {
+      const result = evaluate('[1,2,3,4,5] | take(4)[1:3]', {});
+      expect(result).toEqual([2, 3]);
     });
   });
 

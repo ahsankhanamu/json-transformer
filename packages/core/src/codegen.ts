@@ -39,6 +39,8 @@ export class CodeGenerator {
   private indent: number = 0;
   private localVariables: Set<string> = new Set();
   private currentPath: string[] = [];
+  private pipeContextVar: string | null = null;
+  private tempVarCounter: number = 0;
 
   constructor(options: CodeGenOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
@@ -90,11 +92,90 @@ export class CodeGenerator {
 
     // Generate return expression
     if (program.expression) {
-      const expr = this.generateExpression(program.expression);
-      parts.push(`return ${expr};`);
+      // Check if expression is a pipe chain - if so, flatten it for readability
+      if (program.expression.type === 'PipeExpression') {
+        const pipeStatements = this.generateFlattenedPipeChain(program.expression);
+        parts.push(...pipeStatements);
+      } else {
+        const expr = this.generateExpression(program.expression);
+        parts.push(`return ${expr};`);
+      }
     }
 
     return parts.join('\n');
+  }
+
+  /**
+   * Flatten a pipe chain into sequential variable assignments for readability.
+   * Transforms: a | b | c | d
+   * Into:
+   *   let _pipe = <a>;
+   *   _pipe = <b applied to _pipe>;
+   *   _pipe = <c applied to _pipe>;
+   *   return <d applied to _pipe>;
+   */
+  private generateFlattenedPipeChain(node: AST.PipeExpression): string[] {
+    // Collect all pipe steps from left to right
+    const steps: AST.Expression[] = [];
+    let current: AST.Expression = node;
+
+    while (current.type === 'PipeExpression') {
+      steps.unshift(current.right);
+      current = current.left;
+    }
+    // current is now the initial value (leftmost expression)
+    const initial = current;
+
+    // If only one pipe, use simple inline generation
+    if (steps.length === 1) {
+      const expr = this.generateExpression(node);
+      return [`return ${expr};`];
+    }
+
+    // Generate flattened code with a single _pipe variable
+    const statements: string[] = [];
+    const pipeVar = '_pipe';
+
+    // First: let _pipe = <initial>;
+    statements.push(`let ${pipeVar} = ${this.generateExpression(initial)};`);
+
+    // Middle steps: _pipe = <transform applied to _pipe>;
+    for (let i = 0; i < steps.length - 1; i++) {
+      const step = steps[i];
+      const transformed = this.generatePipeStep(step, pipeVar);
+      statements.push(`${pipeVar} = ${transformed};`);
+    }
+
+    // Final step: return <transform applied to _pipe>;
+    const lastStep = steps[steps.length - 1];
+    const finalExpr = this.generatePipeStep(lastStep, pipeVar);
+    statements.push(`return ${finalExpr};`);
+
+    return statements;
+  }
+
+  /**
+   * Generate code for a single pipe step, given the pipe variable name.
+   */
+  private generatePipeStep(step: AST.Expression, pipeVar: string): string {
+    // Handle PipeContextRef-based expressions (jq-style: .field, .[0], .method())
+    if (this.containsPipeContextRef(step)) {
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = pipeVar;
+      const result = this.generateExpression(step);
+      this.pipeContextVar = prevPipeVar;
+      return result;
+    }
+
+    // Handle pipeable calls (Identifier, CallExpression, or wrapped in IndexAccess/SliceAccess)
+    const pipedResult = this.tryGeneratePipedCall(step, pipeVar);
+    if (pipedResult) {
+      return pipedResult;
+    }
+
+    // Fallback: call the expression as a function
+    const stepCode = this.generateExpression(step);
+    return `${stepCode}(${pipeVar})`;
   }
 
   private generateLetBinding(node: AST.LetBinding): string {
@@ -175,6 +256,9 @@ export class CodeGenerator {
 
       case 'PipeExpression':
         return this.generatePipeExpression(node);
+
+      case 'PipeContextRef':
+        return this.pipeContextVar || this.options.inputVar;
 
       case 'NullCoalesce':
         return this.generateNullCoalesce(node);
@@ -592,38 +676,95 @@ export class CodeGenerator {
   private generatePipeExpression(node: AST.PipeExpression): string {
     const left = this.generateExpression(node.left);
 
-    // The right side should be a function call or identifier
-    if (node.right.type === 'Identifier') {
-      const funcName = node.right.name;
-      // In native mode, try to generate native JS
-      if (this.options.native) {
-        const nativeCode = this.generateNativeHelperCall(funcName, [left]);
-        if (nativeCode) return nativeCode;
-      }
-      // Call as function with left as first argument
-      return `__helpers.${funcName}(${left})`;
+    // Check if right side contains PipeContextRef (jq-style property access)
+    if (this.containsPipeContextRef(node.right)) {
+      // Generate with temp variable using IIFE to declare the variable
+      const tempVar = this.getTempVar('_pipe');
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = tempVar;
+      const right = this.generateExpression(node.right);
+      this.pipeContextVar = prevPipeVar;
+
+      // Wrap in IIFE to declare the temp variable
+      return `(((${tempVar}) => ${right})(${left}))`;
     }
 
-    if (node.right.type === 'CallExpression') {
-      // Insert left as first argument
-      // If callee is an identifier, use its name directly for helper lookup
-      const callee =
-        node.right.callee.type === 'Identifier'
-          ? node.right.callee.name
-          : this.generateExpression(node.right.callee);
-      const args = node.right.arguments.map((a) => this.generateExpression(a));
-
-      // In native mode, try to generate native JS
-      if (this.options.native && node.right.callee.type === 'Identifier') {
-        const nativeCode = this.generateNativeHelperCall(callee, [left, ...args]);
-        if (nativeCode) return nativeCode;
-      }
-      return `__helpers.${callee}(${left}, ${args.join(', ')})`;
+    // Try to generate a piped call (handles Identifier, CallExpression, and wrapped versions)
+    const pipedResult = this.tryGeneratePipedCall(node.right, left);
+    if (pipedResult) {
+      return pipedResult;
     }
 
     // Fallback: just call it
     const right = this.generateExpression(node.right);
     return `${right}(${left})`;
+  }
+
+  /**
+   * Try to generate a piped function call, handling wrappers like IndexAccess and SliceAccess.
+   * This allows expressions like: value | split("")[0] or value | take(5)[0]
+   */
+  private tryGeneratePipedCall(node: AST.Expression, pipeValue: string): string | null {
+    // Direct identifier: value | funcName
+    if (node.type === 'Identifier') {
+      const funcName = node.name;
+      if (this.options.native) {
+        const nativeCode = this.generateNativeHelperCall(funcName, [pipeValue]);
+        if (nativeCode) return nativeCode;
+      }
+      return `__helpers.${funcName}(${pipeValue})`;
+    }
+
+    // Direct call: value | funcName(args)
+    if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
+      const funcName = node.callee.name;
+      const args = node.arguments.map((a) => this.generateExpression(a));
+
+      if (this.options.native) {
+        const nativeCode = this.generateNativeHelperCall(funcName, [pipeValue, ...args]);
+        if (nativeCode) return nativeCode;
+      }
+      return `__helpers.${funcName}(${pipeValue}${args.length ? ', ' + args.join(', ') : ''})`;
+    }
+
+    // Index access wrapping a pipeable call: value | funcName(args)[index]
+    if (node.type === 'IndexAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
+      if (innerResult) {
+        const index = this.generateExpression(node.index);
+        const op = node.optional || !this.options.strict ? '?.' : '';
+        return `${innerResult}${op}[${index}]`;
+      }
+    }
+
+    // Slice access wrapping a pipeable call: value | funcName(args)[start:end]
+    if (node.type === 'SliceAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
+      if (innerResult) {
+        const start = node.sliceStart ? this.generateExpression(node.sliceStart) : '0';
+        const end = node.sliceEnd ? this.generateExpression(node.sliceEnd) : '';
+        return `(${innerResult}).slice(${start}${end ? ', ' + end : ''})`;
+      }
+    }
+
+    return null;
+  }
+
+  private containsPipeContextRef(node: AST.Expression): boolean {
+    if (node.type === 'PipeContextRef') return true;
+    if (node.type === 'MemberAccess') return this.containsPipeContextRef(node.object);
+    if (node.type === 'IndexAccess') return this.containsPipeContextRef(node.object);
+    if (node.type === 'CallExpression') {
+      return (
+        this.containsPipeContextRef(node.callee) ||
+        node.arguments.some((a) => this.containsPipeContextRef(a))
+      );
+    }
+    return false;
+  }
+
+  private getTempVar(prefix: string): string {
+    return `${prefix}${this.tempVarCounter++}`;
   }
 
   private generateNullCoalesce(node: AST.NullCoalesce): string {

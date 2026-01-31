@@ -191,6 +191,10 @@ export interface PipeExpression extends BaseNode {
   right: Expression;
 }
 
+export interface PipeContextRef extends BaseNode {
+  type: 'PipeContextRef';
+}
+
 export interface NullCoalesce extends BaseNode {
   type: 'NullCoalesce';
   left: Expression;
@@ -333,6 +337,7 @@ export type Expression =
   | UnaryExpression
   | TernaryExpression
   | PipeExpression
+  | PipeContextRef
   | NullCoalesce
   | CallExpression
   | ArrowFunction
@@ -371,6 +376,7 @@ export interface Visitor<T = void> {
   visitUnaryExpression?(node: UnaryExpression): T;
   visitTernaryExpression?(node: TernaryExpression): T;
   visitPipeExpression?(node: PipeExpression): T;
+  visitPipeContextRef?(node: PipeContextRef): T;
   visitNullCoalesce?(node: NullCoalesce): T;
   visitCallExpression?(node: CallExpression): T;
   visitArrowFunction?(node: ArrowFunction): T;

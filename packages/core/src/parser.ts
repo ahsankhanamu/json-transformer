@@ -84,15 +84,142 @@ export class Parser {
   }
 
   // Pipe: value | transform | transform
+  // Also supports jq-style property access: value | .field | .[0] | .method()
   private parsePipe(): AST.Expression {
     let left = this.parseTernary();
 
     while (this.match(TokenType.PIPE)) {
-      const right = this.parseTernary();
-      left = { type: 'PipeExpression', left, right };
+      // Check if next token is DOT - pipe property access syntax (jq-style)
+      if (this.check(TokenType.DOT)) {
+        const right = this.parsePipePropertyAccess();
+        left = { type: 'PipeExpression', left, right };
+      } else if (this.check(TokenType.LBRACKET)) {
+        // Also support | [0] syntax (without dot)
+        const right = this.parsePipeIndexAccess();
+        left = { type: 'PipeExpression', left, right };
+      } else {
+        const right = this.parseTernary();
+        left = { type: 'PipeExpression', left, right };
+      }
     }
 
     return left;
+  }
+
+  // Parse jq-style pipe property access: .field, .[0], .field.subfield, .method()
+  private parsePipePropertyAccess(): AST.Expression {
+    // Start with PipeContextRef as the base
+    let expr: AST.Expression = { type: 'PipeContextRef' };
+
+    // Must start with DOT
+    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
+      if (this.match(TokenType.DOT)) {
+        // Check for .[index] syntax
+        if (this.check(TokenType.LBRACKET)) {
+          this.advance(); // consume [
+          const index = this.parseExpression();
+          this.consume(TokenType.RBRACKET, 'Expected "]"');
+          expr = {
+            type: 'IndexAccess',
+            object: expr,
+            index,
+            optional: false,
+          };
+        } else {
+          // .field or .method()
+          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
+          expr = {
+            type: 'MemberAccess',
+            object: expr,
+            property: name.value as string,
+            optional: false,
+          };
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        // [0] or ["key"] without dot prefix
+        const index = this.parseExpression();
+        this.consume(TokenType.RBRACKET, 'Expected "]"');
+        expr = {
+          type: 'IndexAccess',
+          object: expr,
+          index,
+          optional: false,
+        };
+      }
+
+      // Handle method calls: .method()
+      if (this.check(TokenType.LPAREN)) {
+        this.advance();
+        const args: AST.Expression[] = [];
+        if (!this.check(TokenType.RPAREN)) {
+          do {
+            args.push(this.parseExpression());
+          } while (this.match(TokenType.COMMA));
+        }
+        this.consume(TokenType.RPAREN, 'Expected ")"');
+        expr = {
+          type: 'CallExpression',
+          callee: expr,
+          arguments: args,
+        };
+      }
+    }
+
+    return expr;
+  }
+
+  // Parse pipe index access: | [0] (without dot)
+  private parsePipeIndexAccess(): AST.Expression {
+    let expr: AST.Expression = { type: 'PipeContextRef' };
+
+    this.advance(); // consume [
+    const index = this.parseExpression();
+    this.consume(TokenType.RBRACKET, 'Expected "]"');
+    expr = {
+      type: 'IndexAccess',
+      object: expr,
+      index,
+      optional: false,
+    };
+
+    // Allow chaining after: | [0].field or | [0][1]
+    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
+      if (this.match(TokenType.DOT)) {
+        if (this.check(TokenType.LBRACKET)) {
+          this.advance();
+          const idx = this.parseExpression();
+          this.consume(TokenType.RBRACKET, 'Expected "]"');
+          expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+        } else {
+          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
+          expr = {
+            type: 'MemberAccess',
+            object: expr,
+            property: name.value as string,
+            optional: false,
+          };
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        const idx = this.parseExpression();
+        this.consume(TokenType.RBRACKET, 'Expected "]"');
+        expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+      }
+
+      // Handle method calls
+      if (this.check(TokenType.LPAREN)) {
+        this.advance();
+        const args: AST.Expression[] = [];
+        if (!this.check(TokenType.RPAREN)) {
+          do {
+            args.push(this.parseExpression());
+          } while (this.match(TokenType.COMMA));
+        }
+        this.consume(TokenType.RPAREN, 'Expected ")"');
+        expr = { type: 'CallExpression', callee: expr, arguments: args };
+      }
+    }
+
+    return expr;
   }
 
   // Ternary: condition ? then : else
