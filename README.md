@@ -98,3 +98,20 @@ items | filter(x => x.active) | count
 | Type | `type`, `isString`, `isNumber`, `isArray`, `isObject`, `isEmpty` |
 | Conversion | `toString`, `toNumber`, `toArray`, `toBoolean` |
 | Utility | `coalesce`, `default`, `if`, `uuid` |
+
+## Code Generation
+
+The code generator converts AST to JavaScript with two modes:
+
+**Forgiving Mode** (default) - Uses optional chaining, returns undefined for missing paths:
+```javascript
+// Input: user.address.city
+// Output: input?.user?.address?.city
+```
+
+**Strict Mode** - Validates at runtime, throws descriptive errors:
+```javascript
+// Input: user.address.city
+// Output: __helpers.strictGet(__helpers.strictGet(input, "user", ""), "address", "user")
+// Throws: "Property 'city' does not exist on object at path 'user.address'"
+```
