@@ -115,3 +115,35 @@ The code generator converts AST to JavaScript with two modes:
 // Output: __helpers.strictGet(__helpers.strictGet(input, "user", ""), "address", "user")
 // Throws: "Property 'city' does not exist on object at path 'user.address'"
 ```
+
+## API
+
+```typescript
+import { compile, evaluate, validate, toJavaScript, parse } from 'mapql';
+
+// compile(expr, options?) - Returns reusable function (fastest for repeated use)
+const fn = compile('user.name | upper');
+fn({ user: { name: 'john' } }); // 'JOHN'
+
+// evaluate(expr, data, options?) - One-shot evaluation with caching
+evaluate('price * qty', { price: 10, qty: 5 }); // 50
+
+// validate(expr) - Check syntax without executing
+validate('user.name'); // null (valid)
+validate('user.');     // ParseError
+
+// toJavaScript(expr, options?) - Generate JS source code
+toJavaScript('a + b'); // 'return (input?.a + input?.b);'
+
+// parse(expr) - Get AST for inspection
+parse('a.b'); // { type: 'Program', expression: { type: 'MemberAccess', ... } }
+```
+
+### Options
+
+```typescript
+interface Options {
+  strict?: boolean;  // Throw errors vs return undefined (default: false)
+  cache?: boolean;   // Cache compiled functions (default: true)
+}
+```
