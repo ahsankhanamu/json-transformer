@@ -227,11 +227,74 @@ let tax = total * 0.1;
 ```
 
 ### Pipe Operations
+
+Basic piping passes values through functions:
 ```javascript
 name | upper | trim
 orders | sort("price") | first
 items | filter(x => x.active) | count
 ```
+
+#### jq-style Property Access
+
+Access properties directly on piped values using `.` prefix (inspired by jq):
+
+```javascript
+// Property access on pipe value
+orders.find(x => x.id === 3) | .status       // "shipped"
+user | .address | .city                       // "New York"
+
+// Index access
+[1, 2, 3] | .[1]                             // 2
+orders | .[0] | .product                      // "Widget"
+
+// Method calls on pipe value
+"hello" | .toUpperCase()                      // "HELLO"
+"hello world" | .split(" ") | .[0]            // "hello"
+
+// Chain with function pipes
+user | .firstName | upper                     // "JOHN"
+"  hello  " | trim | .toUpperCase()           // "HELLO"
+
+// Index access without dot (also works)
+[1, 2, 3] | [1]                              // 2
+```
+
+#### Function Pipes with Index/Slice Access
+
+Call functions in pipes and immediately access results:
+```javascript
+"a,b,c" | split(",")[1]                      // "b"
+[1,2,3,4,5] | take(4)[1:3]                   // [2, 3]
+orders.find(x => x.id === 1) | .status | split(" ")[0]  // "shipped"
+```
+
+#### Pipe to Object Construction
+
+Reshape data by piping to object literals. Use `.` to reference piped value:
+
+```javascript
+// Create new object from piped value
+orders[0] | { id: .id, name: .product }
+// → { id: 1, name: "Widget" }
+
+// Spread piped value and add/override properties
+orders[0] | { ..., extra: "new" }
+// → { id: 1, product: "Widget", price: 25.99, ..., extra: "new" }
+
+// Nested pipes within object construction
+orders[0] | { id: .id, upper: .status | upper }
+// → { id: 1, upper: "SHIPPED" }
+
+// Arithmetic on piped properties
+orders[0] | { doubled: .price * 2 }
+// → { doubled: 51.98 }
+```
+
+**Inside pipe object construction:**
+- `.field` accesses properties on the piped value
+- `...` spreads the piped value (bare spread, no object prefix needed)
+- Expressions can use `.` references mixed with literals and operations
 
 ## Built-in Functions
 

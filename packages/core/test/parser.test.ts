@@ -209,6 +209,28 @@ describe('Parser', () => {
       const result = evaluate('[1,2,3,4,5] | take(4)[1:3]', {});
       expect(result).toEqual([2, 3]);
     });
+
+    test('pipe to object construction', () => {
+      const result = evaluate('orders[0] | { id: .id, name: .product }', testData);
+      expect(result).toEqual({ id: 1, name: 'Widget' });
+    });
+
+    test('pipe to object with spread', () => {
+      const result = evaluate('orders[0] | { ..., extra: "new" }', testData) as any;
+      expect(result.id).toBe(1);
+      expect(result.product).toBe('Widget');
+      expect(result.extra).toBe('new');
+    });
+
+    test('pipe to object with nested pipe', () => {
+      const result = evaluate('orders[0] | { id: .id, upper: .status | upper }', testData);
+      expect(result).toEqual({ id: 1, upper: 'SHIPPED' });
+    });
+
+    test('pipe to object with arithmetic', () => {
+      const result = evaluate('orders[0] | { doubled: .price * 2 }', testData);
+      expect(result).toEqual({ doubled: 51.98 });
+    });
   });
 
   describe('Object Construction', () => {

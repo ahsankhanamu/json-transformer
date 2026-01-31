@@ -21,6 +21,7 @@ export class ParseError extends Error {
 export class Parser {
   private tokens: Token[] = [];
   private current: number = 0;
+  private inPipeObjectContext: boolean = false;
 
   constructor(private input: string) {}
 
@@ -85,6 +86,7 @@ export class Parser {
 
   // Pipe: value | transform | transform
   // Also supports jq-style property access: value | .field | .[0] | .method()
+  // And pipe-to-object construction: value | { id: .id, name: .name }
   private parsePipe(): AST.Expression {
     let left = this.parseTernary();
 
@@ -97,6 +99,10 @@ export class Parser {
         // Also support | [0] syntax (without dot)
         const right = this.parsePipeIndexAccess();
         left = { type: 'PipeExpression', left, right };
+      } else if (this.check(TokenType.LBRACE)) {
+        // Pipe-to-object construction: value | { .field, newKey: .other }
+        const right = this.parsePipeObjectConstruction();
+        left = { type: 'PipeExpression', left, right };
       } else {
         const right = this.parseTernary();
         left = { type: 'PipeExpression', left, right };
@@ -104,6 +110,18 @@ export class Parser {
     }
 
     return left;
+  }
+
+  // Parse pipe-to-object construction: value | { id: .id, name: .name | upper }
+  private parsePipeObjectConstruction(): AST.ObjectLiteral {
+    const savedContext = this.inPipeObjectContext;
+    this.inPipeObjectContext = true;
+
+    this.advance(); // consume {
+    const result = this.parseObjectLiteral();
+
+    this.inPipeObjectContext = savedContext;
+    return result;
   }
 
   // Parse jq-style pipe property access: .field, .[0], .field.subfield, .method()
@@ -206,6 +224,71 @@ export class Parser {
       }
 
       // Handle method calls
+      if (this.check(TokenType.LPAREN)) {
+        this.advance();
+        const args: AST.Expression[] = [];
+        if (!this.check(TokenType.RPAREN)) {
+          do {
+            args.push(this.parseExpression());
+          } while (this.match(TokenType.COMMA));
+        }
+        this.consume(TokenType.RPAREN, 'Expected ")"');
+        expr = { type: 'CallExpression', callee: expr, arguments: args };
+      }
+    }
+
+    return expr;
+  }
+
+  // Parse .field access inside pipe object context (DOT already consumed)
+  // Returns PipeContextRef-based expression: .field, .[0], .field.nested
+  private parsePipeContextAccess(): AST.Expression {
+    let expr: AST.Expression = { type: 'PipeContextRef' };
+
+    // Check for .[index] syntax
+    if (this.check(TokenType.LBRACKET)) {
+      this.advance(); // consume [
+      const index = this.parseExpression();
+      this.consume(TokenType.RBRACKET, 'Expected "]"');
+      expr = { type: 'IndexAccess', object: expr, index, optional: false };
+    } else if (this.check(TokenType.IDENTIFIER)) {
+      // .field
+      const name = this.advance();
+      expr = {
+        type: 'MemberAccess',
+        object: expr,
+        property: name.value as string,
+        optional: false,
+      };
+    } else {
+      // Just . by itself - return the pipe context
+      return expr;
+    }
+
+    // Allow chaining: .field.nested, .field[0], .field.method()
+    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
+      if (this.match(TokenType.DOT)) {
+        if (this.check(TokenType.LBRACKET)) {
+          this.advance();
+          const idx = this.parseExpression();
+          this.consume(TokenType.RBRACKET, 'Expected "]"');
+          expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+        } else {
+          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
+          expr = {
+            type: 'MemberAccess',
+            object: expr,
+            property: name.value as string,
+            optional: false,
+          };
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        const idx = this.parseExpression();
+        this.consume(TokenType.RBRACKET, 'Expected "]"');
+        expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+      }
+
+      // Handle method calls: .method()
       if (this.check(TokenType.LPAREN)) {
         this.advance();
         const args: AST.Expression[] = [];
@@ -523,6 +606,11 @@ export class Parser {
     }
 
     if (this.match(TokenType.DOT)) {
+      // In pipe object context, .field refers to pipe value (PipeContextRef)
+      if (this.inPipeObjectContext) {
+        return this.parsePipeContextAccess();
+      }
+      // Otherwise, .field refers to current input (CurrentAccess)
       if (this.check(TokenType.IDENTIFIER)) {
         const name = this.advance();
         return { type: 'CurrentAccess', path: name.value };
@@ -618,10 +706,18 @@ export class Parser {
     const properties: AST.ObjectProperty[] = [];
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
-      // Spread property: ...expr
+      // Spread property: ...expr or just ... (spread pipe context)
       if (this.match(TokenType.SPREAD)) {
-        const argument = this.parseExpression();
-        properties.push({ type: 'SpreadProperty', argument });
+        // In pipe context, bare ... spreads the pipe value
+        if (
+          this.inPipeObjectContext &&
+          (this.check(TokenType.COMMA) || this.check(TokenType.RBRACE))
+        ) {
+          properties.push({ type: 'SpreadProperty', argument: { type: 'PipeContextRef' } });
+        } else {
+          const argument = this.parseExpression();
+          properties.push({ type: 'SpreadProperty', argument });
+        }
       }
       // Computed property: [expr]: value
       else if (this.match(TokenType.LBRACKET)) {

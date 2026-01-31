@@ -686,7 +686,9 @@ export class CodeGenerator {
       this.pipeContextVar = prevPipeVar;
 
       // Wrap in IIFE to declare the temp variable
-      return `(((${tempVar}) => ${right})(${left}))`;
+      // Extra parens needed for object literals (arrow fn returning object needs parens)
+      const wrappedRight = node.right.type === 'ObjectLiteral' ? `(${right})` : right;
+      return `(((${tempVar}) => ${wrappedRight})(${left}))`;
     }
 
     // Try to generate a piped call (handles Identifier, CallExpression, and wrapped versions)
@@ -759,6 +761,43 @@ export class CodeGenerator {
         this.containsPipeContextRef(node.callee) ||
         node.arguments.some((a) => this.containsPipeContextRef(a))
       );
+    }
+    // Check inside object literals
+    if (node.type === 'ObjectLiteral') {
+      return node.properties.some((prop) => {
+        if (prop.type === 'StandardProperty' || prop.type === 'ComputedProperty') {
+          return this.containsPipeContextRef(prop.value);
+        }
+        if (prop.type === 'SpreadProperty') {
+          return this.containsPipeContextRef(prop.argument);
+        }
+        return false;
+      });
+    }
+    // Check inside array literals
+    if (node.type === 'ArrayLiteral') {
+      return node.elements.some((el) => {
+        if (el.type === 'SpreadElement') {
+          return this.containsPipeContextRef(el.argument);
+        }
+        return this.containsPipeContextRef(el);
+      });
+    }
+    // Check binary expressions
+    if (node.type === 'BinaryExpression') {
+      return this.containsPipeContextRef(node.left) || this.containsPipeContextRef(node.right);
+    }
+    // Check ternary expressions
+    if (node.type === 'TernaryExpression') {
+      return (
+        this.containsPipeContextRef(node.test) ||
+        this.containsPipeContextRef(node.consequent) ||
+        this.containsPipeContextRef(node.alternate)
+      );
+    }
+    // Check pipe expressions (nested pipes)
+    if (node.type === 'PipeExpression') {
+      return this.containsPipeContextRef(node.left) || this.containsPipeContextRef(node.right);
     }
     return false;
   }
