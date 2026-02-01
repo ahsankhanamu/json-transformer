@@ -432,14 +432,25 @@ export class CodeGenerator {
       return node.path ?? null;
     }
 
-    // Handle .prop.nested (CurrentAccess followed by MemberAccess chain)
+    // Handle PipeContextRef-based paths: | sort(.price) or | sort(.meta.priority)
+    if (node.type === 'PipeContextRef') {
+      // PipeContextRef alone represents the pipe value itself, not a path
+      return '';
+    }
+
+    // Handle .prop.nested (CurrentAccess or PipeContextRef followed by MemberAccess chain)
     if (node.type === 'MemberAccess' && !node.optional) {
+      // Handle PipeContextRef.property: .price → "price"
+      if (node.object.type === 'PipeContextRef') {
+        return node.property;
+      }
       if (node.object.type === 'CurrentAccess' && node.object.path) {
         return `${node.object.path}.${node.property}`;
       }
       const objectPath = this.tryExtractPropertyPath(node.object);
       if (objectPath !== null) {
-        return `${objectPath}.${node.property}`;
+        // If objectPath is empty (from PipeContextRef), just return property
+        return objectPath === '' ? node.property : `${objectPath}.${node.property}`;
       }
     }
 
@@ -805,6 +816,29 @@ export class CodeGenerator {
     // Direct call: value | funcName(args)
     if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
       const funcName = node.callee.name;
+
+      // Handle sort/groupBy/keyBy with property path argument: value | sort(.price)
+      const helperMethods = ['sort', 'sortDesc', 'groupBy', 'keyBy'];
+      if (helperMethods.includes(funcName) && node.arguments.length === 1) {
+        const arg = node.arguments[0];
+        let keyPath: string | null = null;
+
+        // Handle string literal: value | sort("price")
+        if (arg.type === 'StringLiteral') {
+          keyPath = arg.value;
+        } else {
+          // Handle .price or .meta.priority (PipeContextRef-based paths)
+          keyPath = this.tryExtractPropertyPath(arg);
+        }
+
+        if (keyPath !== null && keyPath !== '') {
+          if (this.options.native) {
+            return this.generateNativeArrayMethod(pipeValue, funcName, keyPath);
+          }
+          return `__helpers.${funcName}(${pipeValue}, "${keyPath}")`;
+        }
+      }
+
       const args = node.arguments.map((a) => this.generateExpression(a));
 
       if (this.options.native) {
