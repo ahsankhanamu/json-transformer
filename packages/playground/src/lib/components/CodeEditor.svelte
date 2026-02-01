@@ -78,7 +78,6 @@
     placeholder: _placeholder = '',
     readonly = false,
     onchange = () => {},
-    inputPaths = [],
   } = $props();
 
   let editorContainer;
@@ -92,44 +91,81 @@
   // Create input path autocomplete source (property suggestions from input JSON)
   // Shows paths up to ONE level deeper than what user has typed
   function inputPathCompletions(context) {
-    // Match property paths: word, word.word, word[].word, etc.
+    // Read from store directly to ensure we get current value (not stale prop closure)
+    const currentInputPaths = get(inputPathsStore);
+    if (currentInputPaths.length === 0) return null;
+
+    // Check if we're after a dot (e.g., "user." or "user.addr")
+    const afterDot = context.matchBefore(/\.[\w]*$/);
+    if (afterDot) {
+      // After a dot: show properties of the parent object
+      const fullMatch = context.matchBefore(/[\w$][\w$.[\]]*\.[\w]*$/);
+      if (!fullMatch) return null;
+
+      const typed = fullMatch.text;
+      const lastDotIndex = typed.lastIndexOf('.');
+      const parentPath = typed.slice(0, lastDotIndex); // e.g., "user" or "user.address"
+      const propertyPrefix = typed.slice(lastDotIndex + 1).toLowerCase(); // e.g., "" or "addr"
+
+      const options = [];
+      const parentPathLower = parentPath.toLowerCase();
+
+      for (const p of currentInputPaths) {
+        const pathLower = p.path.toLowerCase();
+
+        // Path must be a direct child of parent (e.g., "user.firstName" for parent "user")
+        if (!pathLower.startsWith(parentPathLower + '.')) continue;
+
+        // Get the property name after the parent path
+        const remainder = p.path.slice(parentPath.length + 1); // e.g., "firstName" or "address.city"
+
+        // Only show direct children (no dots in remainder)
+        if (remainder.includes('.') || remainder.includes('[')) continue;
+
+        // Filter by what's typed after the dot
+        if (propertyPrefix && !remainder.toLowerCase().startsWith(propertyPrefix)) continue;
+
+        options.push({
+          label: remainder,
+          type: p.type,
+          detail: p.detail,
+          boost: 3, // Higher boost for property completions
+          fullPath: p.path, // Store full path for preview evaluation
+        });
+      }
+
+      if (options.length === 0) return null;
+
+      return {
+        from: fullMatch.from + lastDotIndex + 1, // Start after the dot
+        options,
+        validFor: /^[\w]*$/,
+      };
+    }
+
+    // No dot: show top-level paths that match
     const pathMatch = context.matchBefore(/[\w$][\w$.[\]]*$/);
-    if (!pathMatch || inputPaths.length === 0) return null;
+    if (!pathMatch) return null;
 
     const typed = pathMatch.text;
     const typedLower = typed.toLowerCase();
     const options = [];
 
-    // Count depth: number of '.' plus number of '[]' or '[n]' segments
-    const countDepth = (s) => {
-      const dots = (s.match(/\./g) || []).length;
-      const brackets = (s.match(/\[[^\]]*\]/g) || []).length;
-      return dots + brackets;
-    };
-
-    const typedDepth = countDepth(typed);
-
-    for (const p of inputPaths) {
+    for (const p of currentInputPaths) {
       const pathLower = p.path.toLowerCase();
+
+      // Only show top-level paths (no dots)
+      if (p.path.includes('.') || p.path.includes('[')) continue;
 
       // Path must start with typed text (case-insensitive)
       if (!pathLower.startsWith(typedLower)) continue;
 
-      // Path depth must be at most one more than typed depth
-      const pathDepth = countDepth(p.path);
-      if (pathDepth > typedDepth + 1) continue;
-
-      // Show just the suffix (what comes after typed text) for cleaner display
-      // e.g., if user typed "user.address.", show "city" not "user.address.city"
-      const suffix = p.path.slice(typed.length);
-      const displayLabel = suffix || p.path;
-
       options.push({
-        label: displayLabel,
-        apply: p.path, // Insert full path
+        label: p.path,
         type: p.type,
         detail: p.detail,
         boost: 2, // Boost input paths above functions
+        fullPath: p.path, // Store full path for preview evaluation
       });
     }
 
@@ -138,12 +174,16 @@
     return {
       from: pathMatch.from,
       options,
-      validFor: /^[\w$.[\]]*$/,
+      validFor: /^[\w]*$/,
     };
   }
 
   // Create transformer expression autocomplete source
   function transformerCompletions(context) {
+    // Don't show function suggestions after a dot (property access context)
+    const afterDot = context.matchBefore(/\.[\w]*$/);
+    if (afterDot) return null;
+
     // Get the word before cursor
     const word = context.matchBefore(/[\w$]*/);
     if (!word || (word.from === word.to && !context.explicit)) return null;
@@ -384,72 +424,59 @@
 
     // Track completion selection for ghost text preview and live evaluation
     let lastSelectedLabel = null;
+    let wasAutocompleteOpen = false;
 
     const completionListener = EditorView.updateListener.of((update) => {
       const completion = selectedCompletion(update.state);
       const completions = currentCompletions(update.state);
-
-      // Get current selection label (or null if no selection)
+      const isAutocompleteOpen = completions !== null;
       const currentLabel = completion?.label || null;
 
-      // If completion changed, update ghost text and preview
-      if (currentLabel !== lastSelectedLabel) {
+      // Only update when selection or open state changes
+      if (currentLabel !== lastSelectedLabel || wasAutocompleteOpen !== isAutocompleteOpen) {
+        const justClosed = wasAutocompleteOpen && !isAutocompleteOpen;
         lastSelectedLabel = currentLabel;
+        wasAutocompleteOpen = isAutocompleteOpen;
 
-        // Clear any pending ghost update
-        if (pendingGhostUpdate) {
-          cancelAnimationFrame(pendingGhostUpdate);
-        }
+        // Clear any pending updates
+        if (pendingGhostUpdate) cancelAnimationFrame(pendingGhostUpdate);
+        if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
 
         if (completion && completions) {
-          // Get the text that would be inserted
+          // Autocomplete is open with a selection
           const applyText =
             typeof completion.apply === 'string' ? completion.apply : completion.label;
-          // Get what's already typed (the part that matches)
           const typed = update.state.doc.sliceString(completions.from, completions.to);
-          // Ghost text is the remaining part (case-insensitive match)
+
+          // Ghost text (inline preview of completion)
           let ghostText = '';
           if (applyText.toLowerCase().startsWith(typed.toLowerCase())) {
             ghostText = applyText.slice(typed.length);
           }
-
-          // Schedule ghost text update for next frame to avoid dispatch during update
           const pos = completions.to;
           pendingGhostUpdate = requestAnimationFrame(() => {
-            if (ghostText && editorView) {
+            if (editorView) {
               editorView.dispatch({
-                effects: setGhostText.of({ text: ghostText, pos }),
+                effects: setGhostText.of(ghostText ? { text: ghostText, pos } : null),
               });
-            } else if (editorView) {
-              editorView.dispatch({ effects: setGhostText.of(null) });
             }
           });
 
-          // For input path completions, show live preview evaluation
-          // Check if this completion is from inputPaths (not a function or keyword)
-          // Use applyText since label may be just the suffix (e.g., "city" instead of "user.address.city")
-          const currentInputPaths = get(inputPathsStore);
-          const isInputPath = currentInputPaths.some((p) => p.path === applyText);
-
-          if (isInputPath && lang === 'transformer') {
-            // Debounce preview evaluation (150ms) - allows quick arrow navigation
-            // without triggering expensive eval on every keystroke
-            if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+          // Preview: only for properties (items with fullPath)
+          const fullPath = completion.fullPath;
+          if (fullPath && lang === 'transformer') {
             previewDebounceTimer = setTimeout(() => {
-              previewExpression.set(applyText);
-            }, 150);
-          } else {
-            if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
-            previewExpression.set(null);
+              previewExpression.set(fullPath);
+            }, 100);
           }
-        } else {
-          // No completion selected, clear ghost text and preview
+          // For methods/functions: don't change preview (keep last property preview)
+        } else if (justClosed) {
+          // Autocomplete just closed - clear ghost text and preview
           pendingGhostUpdate = requestAnimationFrame(() => {
             if (editorView) {
               editorView.dispatch({ effects: setGhostText.of(null) });
             }
           });
-          if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
           previewExpression.set(null);
         }
       }
@@ -486,7 +513,6 @@
     // Clean up timers
     if (pendingGhostUpdate) cancelAnimationFrame(pendingGhostUpdate);
     if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
-    // Clear preview expression when editor unmounts
     previewExpression.set(null);
     editorView?.destroy();
   });

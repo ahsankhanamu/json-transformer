@@ -1,12 +1,7 @@
 <script>
   import CodeEditor from './CodeEditor.svelte';
 
-  let {
-    value = $bindable(''),
-    isValid = true,
-    strictMode = $bindable(false),
-    inputPaths = [],
-  } = $props();
+  let { value = $bindable(''), isValid = true, strictMode = $bindable(false) } = $props();
 </script>
 
 <div class="panel h-full flex flex-col">
@@ -38,6 +33,6 @@
     </div>
   </div>
   <div class="flex-1 min-h-0">
-    <CodeEditor bind:value lang="transformer" {inputPaths} />
+    <CodeEditor bind:value lang="transformer" />
   </div>
 </div>

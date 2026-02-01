@@ -18,7 +18,6 @@
     astResult,
     generatedJs,
     nativeJs,
-    inputPaths,
     initTransformer,
     currentTheme,
     currentLayout,
@@ -182,7 +181,6 @@
             bind:value={$expression}
             isValid={$validationResult.valid}
             bind:strictMode={$strictMode}
-            inputPaths={$inputPaths}
           />
         </div>
       {:else if $currentLayout === 'stacked'}

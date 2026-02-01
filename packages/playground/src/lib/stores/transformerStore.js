@@ -170,14 +170,15 @@ export const inputPaths = derived(parsedInput, ($parsedInput) => {
   return extractPaths($parsedInput.data);
 });
 
+// Validation uses debounced expression to avoid flashing errors while typing
 export const validationResult = derived(
-  [expression, transformerLoaded],
-  ([$expression, $transformerLoaded]) => {
+  [debouncedExpressionStore, transformerLoaded],
+  ([$debouncedExpression, $transformerLoaded]) => {
     if (!$transformerLoaded || !transformerModule) {
       return { valid: false, error: 'Loading...' };
     }
     try {
-      const error = transformerModule.validate($expression);
+      const error = transformerModule.validate($debouncedExpression);
       return error ? { valid: false, error: error.message } : { valid: true };
     } catch (e) {
       return { valid: false, error: e.message };
