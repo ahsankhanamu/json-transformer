@@ -13,6 +13,7 @@ export const themes = {
   light: {
     name: 'Light',
     colors: {
+      // UI colors
       bg: '#f5f6fa',
       'bg-secondary': '#ffffff',
       'bg-tertiary': '#f3f4f6',
@@ -25,11 +26,27 @@ export const themes = {
       success: '#22c55e',
       error: '#ef4444',
       warning: '#f59e0b',
+      'active-line': 'rgba(59, 130, 246, 0.08)',
+      selection: 'rgba(59, 130, 246, 0.15)',
+      // Syntax highlighting (GitHub Light / One Light inspired)
+      'syntax-keyword': '#d73a49',
+      'syntax-control': '#a626a4',
+      'syntax-function': '#6f42c1',
+      'syntax-variable': '#24292e',
+      'syntax-property': '#005cc5',
+      'syntax-string': '#22863a',
+      'syntax-number': '#005cc5',
+      'syntax-bool': '#d73a49',
+      'syntax-operator': '#d73a49',
+      'syntax-bracket': '#24292e',
+      'syntax-comment': '#6a737d',
+      'syntax-type': '#6f42c1',
     },
   },
   dark: {
     name: 'Dark',
     colors: {
+      // UI colors
       bg: '#121218',
       'bg-secondary': '#1c1c24',
       'bg-tertiary': '#2e2e3a',
@@ -42,11 +59,27 @@ export const themes = {
       success: '#50e080',
       error: '#ff7b7b',
       warning: '#ffb938',
+      'active-line': 'rgba(91, 159, 255, 0.15)',
+      selection: 'rgba(91, 159, 255, 0.3)',
+      // Syntax highlighting (One Dark Pro inspired)
+      'syntax-keyword': '#c678dd',
+      'syntax-control': '#c678dd',
+      'syntax-function': '#e5c07b',
+      'syntax-variable': '#e06c75',
+      'syntax-property': '#61afef',
+      'syntax-string': '#98c379',
+      'syntax-number': '#d19a66',
+      'syntax-bool': '#d19a66',
+      'syntax-operator': '#56b6c2',
+      'syntax-bracket': '#abb2bf',
+      'syntax-comment': '#5c6370',
+      'syntax-type': '#e5c07b',
     },
   },
   midnight: {
     name: 'Midnight Blue',
     colors: {
+      // UI colors
       bg: '#0a1628',
       'bg-secondary': '#132039',
       'bg-tertiary': '#243b5c',
@@ -59,6 +92,21 @@ export const themes = {
       success: '#4ade80',
       error: '#fb7185',
       warning: '#fb923c',
+      'active-line': 'rgba(34, 211, 238, 0.15)',
+      selection: 'rgba(34, 211, 238, 0.3)',
+      // Syntax highlighting
+      'syntax-keyword': '#22d3ee',
+      'syntax-control': '#e879f9',
+      'syntax-function': '#fcd34d',
+      'syntax-variable': '#a5f3fc',
+      'syntax-property': '#a5f3fc',
+      'syntax-string': '#fda4af',
+      'syntax-number': '#86efac',
+      'syntax-bool': '#22d3ee',
+      'syntax-operator': '#e2e8f0',
+      'syntax-bracket': '#fcd34d',
+      'syntax-comment': '#4ade80',
+      'syntax-type': '#5eead4',
     },
   },
 };

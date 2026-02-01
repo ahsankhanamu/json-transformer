@@ -177,8 +177,82 @@ let tax = total * 0.1;
 
 ## Pipe Operations
 
+The pipe operator (`|`) chains transformations, passing the result of the left side to the right side.
+
+### Helper Function Pipes
+
 ```javascript
 name | upper | trim
 orders | sort("price") | first
 items | filter(x => x.active) | count
+```
+
+### Property Access Pipes (jq-style)
+
+Access properties directly on the piped value using dot syntax:
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `val \| .field` | Access property | `user \| .name` → `"John"` |
+| `val \| .[0]` | Access index | `[1,2,3] \| .[1]` → `2` |
+| `val \| .["key"]` | Dynamic key access | `obj \| .[fieldName]` |
+| `val \| .method()` | Call method | `"hello" \| .toUpperCase()` → `"HELLO"` |
+| `val \| .a.b.c` | Chain property access | `user \| .address.city` |
+
+**Examples:**
+
+```javascript
+// Find and access property
+orders.find(x => x.id === 3) | .status      // → "shipped"
+
+// Chain multiple property accesses
+{ items: [{ x: 1 }] } | .items | .[0] | .x  // → 1
+
+// Call methods on piped value
+"hello" | .split("") | .[0]                 // → "h"
+"  hello  " | trim | .toUpperCase()         // → "HELLO"
+```
+
+### Pipe to Object Construction
+
+Transform a value into an object, referencing the piped value with `.field`:
+
+```javascript
+user | { name: .firstName, city: .address.city }
+
+// With spread
+user | { ..., fullName: .firstName & " " & .lastName }
+
+// Shorthand (equivalent to { id: .id, name: .name })
+user | { id, name }
+```
+
+### Pipe to Array Construction
+
+Transform a value into an array:
+
+```javascript
+user | [.id, .name, .email]
+
+// Shorthand
+user | [id, name, email]
+```
+
+### Generated Code
+
+Pipe expressions generate clean, readable JavaScript:
+
+```javascript
+// Expression: orders.find(x => x.id === 3) | .status
+function transform(input) {
+  let _pipe = input?.orders?.find((x) => x?.id === 3);
+  return _pipe?.status;
+}
+
+// Expression: "hello" | .split("") | .[0]
+function transform(input) {
+  let _pipe = "hello";
+  _pipe = _pipe?.split("");
+  return _pipe?.[0];
+}
 ```

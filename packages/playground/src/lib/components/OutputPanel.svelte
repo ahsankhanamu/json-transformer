@@ -130,7 +130,12 @@
       </button>
     </div>
   </div>
-  <div class="flex-1 min-h-0 min-w-0 overflow-auto p-4 font-mono text-sm relative">
+  <div
+    class="flex-1 min-h-0 min-w-0 overflow-auto font-mono text-sm relative {activeTab === 'js' ||
+    activeTab === 'native'
+      ? 'pt-2 pr-4 pb-2'
+      : 'p-4'}"
+  >
     <!-- Copy button - absolute positioned -->
     {#if canCopy}
       <button

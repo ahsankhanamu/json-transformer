@@ -14,6 +14,83 @@
   --color-success: #50e080;
   --color-error: #ff7b7b;
   --color-warning: #ffb938;
+  --color-active-line: rgba(91, 159, 255, 0.15);
+  --color-selection: rgba(91, 159, 255, 0.3);
+  /* Dark theme syntax (One Dark Pro inspired) */
+  --color-syntax-keyword: #c678dd;
+  --color-syntax-control: #c678dd;
+  --color-syntax-function: #e5c07b;
+  --color-syntax-variable: #e06c75;
+  --color-syntax-property: #61afef;
+  --color-syntax-string: #98c379;
+  --color-syntax-number: #d19a66;
+  --color-syntax-bool: #d19a66;
+  --color-syntax-operator: #56b6c2;
+  --color-syntax-bracket: #abb2bf;
+  --color-syntax-comment: #5c6370;
+  --color-syntax-type: #e5c07b;
+}
+
+:root.light {
+  /* Light theme colors */
+  --color-bg: #f5f6fa;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f3f4f6;
+  --color-text: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #9ca3af;
+  --color-border: #e5e7eb;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-active-line: rgba(59, 130, 246, 0.08);
+  --color-selection: rgba(59, 130, 246, 0.15);
+  /* Light theme syntax (GitHub Light / One Light inspired) */
+  --color-syntax-keyword: #d73a49;
+  --color-syntax-control: #a626a4;
+  --color-syntax-function: #6f42c1;
+  --color-syntax-variable: #24292e;
+  --color-syntax-property: #005cc5;
+  --color-syntax-string: #22863a;
+  --color-syntax-number: #005cc5;
+  --color-syntax-bool: #d73a49;
+  --color-syntax-operator: #d73a49;
+  --color-syntax-bracket: #24292e;
+  --color-syntax-comment: #6a737d;
+  --color-syntax-type: #6f42c1;
+}
+
+:root.midnight {
+  /* Midnight theme colors */
+  --color-bg: #0a1628;
+  --color-bg-secondary: #132039;
+  --color-bg-tertiary: #243b5c;
+  --color-text: #e2e8f0;
+  --color-text-secondary: #a8c0e0;
+  --color-text-muted: #5a7aa0;
+  --color-border: #1e3a5f;
+  --color-accent: #22d3ee;
+  --color-accent-hover: #67e8f9;
+  --color-success: #4ade80;
+  --color-error: #fb7185;
+  --color-warning: #fb923c;
+  --color-active-line: rgba(34, 211, 238, 0.15);
+  --color-selection: rgba(34, 211, 238, 0.3);
+  /* Midnight theme syntax */
+  --color-syntax-keyword: #22d3ee;
+  --color-syntax-control: #e879f9;
+  --color-syntax-function: #fcd34d;
+  --color-syntax-variable: #a5f3fc;
+  --color-syntax-property: #a5f3fc;
+  --color-syntax-string: #fda4af;
+  --color-syntax-number: #86efac;
+  --color-syntax-bool: #22d3ee;
+  --color-syntax-operator: #e2e8f0;
+  --color-syntax-bracket: #fcd34d;
+  --color-syntax-comment: #4ade80;
+  --color-syntax-type: #5eead4;
 }
 
 * {
@@ -84,7 +161,7 @@ body {
 }
 
 .cm-editor .cm-activeLine {
-  background-color: rgba(91, 159, 255, 0.15) !important;
+  background-color: var(--color-active-line) !important;
 }
 
 .cm-editor .cm-content {
@@ -98,59 +175,87 @@ body {
 
 .cm-editor .cm-selectionBackground,
 .cm-editor .cm-content ::selection {
-  background-color: rgba(91, 159, 255, 0.3) !important;
+  background-color: var(--color-selection) !important;
 }
 
 .cm-editor.cm-focused .cm-selectionBackground {
-  background-color: rgba(91, 159, 255, 0.4) !important;
+  background-color: var(--color-selection) !important;
 }
 
 .cm-editor .cm-placeholder {
   color: var(--color-text-muted) !important;
 }
 
-/* JSON syntax highlighting - theme aware (matching adeo-data-mapper) */
-:root {
-  /* Dark theme syntax */
-  --syntax-string: #5fe8b8;
-  --syntax-number: #5b9fff;
-  --syntax-bool: #b88fff;
-  --syntax-property: #ffd070;
+/* CodeMirror syntax highlighting classes - use CSS variables for theme support */
+.cm-editor .cm-syntax-keyword {
+  color: var(--color-syntax-keyword) !important;
 }
 
-:root.light {
-  --syntax-string: #047857;
-  --syntax-number: #3b82f6;
-  --syntax-bool: #7c3aed;
-  --syntax-property: #d97706;
+.cm-editor .cm-syntax-control {
+  color: var(--color-syntax-control) !important;
 }
 
-:root.midnight {
-  --syntax-string: #5eead4;
-  --syntax-number: #22d3ee;
-  --syntax-bool: #e879f9;
-  --syntax-property: #fdba74;
+.cm-editor .cm-syntax-function {
+  color: var(--color-syntax-function) !important;
 }
 
+.cm-editor .cm-syntax-variable {
+  color: var(--color-syntax-variable) !important;
+}
+
+.cm-editor .cm-syntax-property {
+  color: var(--color-syntax-property) !important;
+}
+
+.cm-editor .cm-syntax-string {
+  color: var(--color-syntax-string) !important;
+}
+
+.cm-editor .cm-syntax-number {
+  color: var(--color-syntax-number) !important;
+}
+
+.cm-editor .cm-syntax-bool {
+  color: var(--color-syntax-bool) !important;
+}
+
+.cm-editor .cm-syntax-operator {
+  color: var(--color-syntax-operator) !important;
+}
+
+.cm-editor .cm-syntax-bracket {
+  color: var(--color-syntax-bracket) !important;
+}
+
+.cm-editor .cm-syntax-type {
+  color: var(--color-syntax-type) !important;
+}
+
+.cm-editor .cm-syntax-comment {
+  color: var(--color-syntax-comment) !important;
+  font-style: italic;
+}
+
+/* Legacy tok- classes for JSON highlighting */
 .cm-editor .tok-string {
-  color: var(--syntax-string) !important;
+  color: var(--color-syntax-string) !important;
 }
 
 .cm-editor .tok-number {
-  color: var(--syntax-number) !important;
+  color: var(--color-syntax-number) !important;
 }
 
 .cm-editor .tok-bool,
 .cm-editor .tok-null {
-  color: var(--syntax-bool) !important;
+  color: var(--color-syntax-bool) !important;
 }
 
 .cm-editor .tok-propertyName {
-  color: var(--syntax-property) !important;
+  color: var(--color-syntax-property) !important;
 }
 
 .cm-editor .tok-punctuation {
-  color: var(--color-text-secondary) !important;
+  color: var(--color-syntax-operator) !important;
 }
 
 /* Tab styles */

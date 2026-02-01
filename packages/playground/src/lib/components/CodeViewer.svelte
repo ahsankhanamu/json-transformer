@@ -12,44 +12,45 @@
   let editorContainer;
   let editorView;
 
-  // Syntax highlighting colors (VS Code Dark+ inspired)
+  // Syntax highlighting using CSS variables for theme support
+  // Colors are defined in app.css and change with theme
   const syntaxColors = HighlightStyle.define([
     // Keywords
-    { tag: tags.keyword, color: '#569cd6' },
-    { tag: tags.controlKeyword, color: '#c586c0' },
+    { tag: tags.keyword, class: 'cm-syntax-keyword' },
+    { tag: tags.controlKeyword, class: 'cm-syntax-control' },
 
     // Functions and methods
-    { tag: tags.function(tags.variableName), color: '#dcdcaa' },
-    { tag: tags.function(tags.propertyName), color: '#dcdcaa' },
+    { tag: tags.function(tags.variableName), class: 'cm-syntax-function' },
+    { tag: tags.function(tags.propertyName), class: 'cm-syntax-function' },
 
     // Variables and parameters
-    { tag: tags.variableName, color: '#9cdcfe' },
-    { tag: tags.definition(tags.variableName), color: '#9cdcfe' },
+    { tag: tags.variableName, class: 'cm-syntax-variable' },
+    { tag: tags.definition(tags.variableName), class: 'cm-syntax-variable' },
 
     // Properties
-    { tag: tags.propertyName, color: '#9cdcfe' },
-    { tag: tags.definition(tags.propertyName), color: '#9cdcfe' },
+    { tag: tags.propertyName, class: 'cm-syntax-property' },
+    { tag: tags.definition(tags.propertyName), class: 'cm-syntax-property' },
 
     // Strings
-    { tag: tags.string, color: '#ce9178' },
-    { tag: tags.special(tags.string), color: '#ce9178' },
+    { tag: tags.string, class: 'cm-syntax-string' },
+    { tag: tags.special(tags.string), class: 'cm-syntax-string' },
 
     // Numbers and booleans
-    { tag: tags.number, color: '#b5cea8' },
-    { tag: tags.bool, color: '#569cd6' },
-    { tag: tags.null, color: '#569cd6' },
+    { tag: tags.number, class: 'cm-syntax-number' },
+    { tag: tags.bool, class: 'cm-syntax-bool' },
+    { tag: tags.null, class: 'cm-syntax-bool' },
 
     // Operators and punctuation
-    { tag: tags.operator, color: '#d4d4d4' },
-    { tag: tags.punctuation, color: '#d4d4d4' },
-    { tag: tags.bracket, color: '#ffd700' },
+    { tag: tags.operator, class: 'cm-syntax-operator' },
+    { tag: tags.punctuation, class: 'cm-syntax-operator' },
+    { tag: tags.bracket, class: 'cm-syntax-bracket' },
 
     // Types
-    { tag: tags.typeName, color: '#4ec9b0' },
-    { tag: tags.className, color: '#4ec9b0' },
+    { tag: tags.typeName, class: 'cm-syntax-type' },
+    { tag: tags.className, class: 'cm-syntax-type' },
 
     // Comments
-    { tag: tags.comment, color: '#6a9955', fontStyle: 'italic' },
+    { tag: tags.comment, class: 'cm-syntax-comment' },
   ]);
 
   // Dark theme
