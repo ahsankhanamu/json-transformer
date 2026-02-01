@@ -88,6 +88,20 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
       return `(${sliceExpr}).map((item, index, arr) => item?.${node.property})`;
     }
 
+    // CallExpression (array method) + MemberAccess = call then map
+    // But skip if the property is itself a method name (method chaining like .filter().map())
+    if (
+      node.object.type === 'CallExpression' &&
+      this.isArrayReturningCall(node.object) &&
+      !BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.property)
+    ) {
+      const callExpr = this.generateExpression(node.object);
+      if (this.strict) {
+        return `(${callExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", ""))`;
+      }
+      return `(${callExpr}).map((item, index, arr) => item?.${node.property})`;
+    }
+
     // Chained property after array-producing operation
     if (node.object.type === 'MemberAccess' && this.isArrayProducingMemberAccess(node.object)) {
       const arrayExpr = this.generateExpression(node.object);

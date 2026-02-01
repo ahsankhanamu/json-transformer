@@ -462,6 +462,32 @@ export abstract class BaseCodeGenerator {
     if (node.object.type === 'MemberAccess') {
       return this.isArrayProducingMemberAccess(node.object);
     }
+    if (node.object.type === 'CallExpression') {
+      return this.isArrayReturningCall(node.object);
+    }
+    return false;
+  }
+
+  /** Known array methods that return arrays */
+  protected static ARRAY_RETURNING_METHODS = new Set([
+    'map',
+    'filter',
+    'slice',
+    'sort',
+    'flatMap',
+    'concat',
+    'reverse',
+    'flat',
+    'toSorted',
+    'toReversed',
+    'toSpliced',
+  ]);
+
+  /** Check if a CallExpression is a call to a known array-returning method */
+  protected isArrayReturningCall(node: AST.CallExpression): boolean {
+    if (node.callee.type === 'MemberAccess') {
+      return BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.callee.property);
+    }
     return false;
   }
 
