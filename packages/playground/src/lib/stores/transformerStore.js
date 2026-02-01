@@ -97,8 +97,8 @@ export const inputJson = writable(`{
 }`);
 
 export const expression = writable(`{
-  fullName: user.firstName & " " & user.lastName,
-  location: user.address.city & ", " & user.address.country,
+  fullName: \`\${user.firstName} \${user.lastName}\`,
+  location: \`\${user.address.city}, \${user.address.country}\`,
 
   // Spread syntax: [? filter] and [] map
   shippedProducts: orders[? status === "shipped"][].product,
@@ -153,6 +153,15 @@ export async function initTransformer() {
     console.error('Failed to load JSON Transformer:', e);
     return false;
   }
+}
+
+// Get tokenizer for autocomplete (uses the loaded module)
+export function getTokenizer() {
+  if (!transformerModule) return null;
+  return {
+    tokenize: transformerModule.tokenize,
+    TokenType: transformerModule.TokenType,
+  };
 }
 
 // Derived stores
