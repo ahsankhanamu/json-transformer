@@ -1082,11 +1082,11 @@ export class CodeGenerator {
     const safeArray = array.includes('?? []') ? array : `(${array} ?? [])`;
 
     if (method === 'sort') {
-      return `[...${safeArray}].sort((a, b) => ${getProp('a')} - ${getProp('b')})`;
+      return `${safeArray}.toSorted((a, b) => ${getProp('a')} - ${getProp('b')})`;
     }
 
     if (method === 'sortDesc') {
-      return `[...${safeArray}].sort((a, b) => ${getProp('b')} - ${getProp('a')})`;
+      return `${safeArray}.toSorted((a, b) => ${getProp('b')} - ${getProp('a')})`;
     }
 
     if (method === 'groupBy') {

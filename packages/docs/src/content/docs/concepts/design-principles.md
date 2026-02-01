@@ -65,21 +65,19 @@ These array methods mutate the original array:
 - `splice()` - modifies in place
 - `push()` / `pop()` - adds/removes elements
 
-JSON Transformer wraps these with spread `[...array]` to create copies:
+### ES2023 Non-Mutating Methods
 
-```javascript
-// Generated code for: orders | sort(.price)
-[...(input?.orders ?? [])].sort((a, b) => a.price - b.price)
-```
-
-### Modern Alternative: toSorted()
-
-ES2023 introduced non-mutating versions:
+JSON Transformer uses ES2023's immutable array methods:
 - `toSorted()` - returns new sorted array
 - `toReversed()` - returns new reversed array
 - `toSpliced()` - returns new spliced array
 
-We use the spread pattern for broader compatibility, but may adopt these in future versions.
+```javascript
+// Generated code for: orders | sort(.price)
+(input?.orders ?? []).toSorted((a, b) => a.price - b.price)
+```
+
+These methods are cleaner than the spread pattern (`[...arr].sort()`) and explicitly signal immutability intent. Requires Node.js 20+ or modern browsers (Chrome 110+, Firefox 115+, Safari 16+).
 
 ---
 
