@@ -1,9 +1,9 @@
 ---
 title: Quick Start
 description: Get up and running with JSON Transformer in minutes.
+sidebar:
+  label: Quick Start
 ---
-
-# Quick Start
 
 ## Installation
 

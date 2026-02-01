@@ -1,9 +1,9 @@
 ---
-title: Introduction
+title: Introduction to JSON Transformer
 description: Learn about JSON Transformer, a lightweight JSON query and transformation language.
+sidebar:
+  label: Introduction
 ---
-
-# Introduction to JSON Transformer
 
 JSON Transformer is a lightweight JSON query and transformation language that compiles to JavaScript. It provides an intuitive syntax for accessing, filtering, and transforming JSON data.
 

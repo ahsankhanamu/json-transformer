@@ -39,6 +39,10 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Concepts',
+          items: [{ label: 'Design Principles', slug: 'concepts/design-principles' }],
+        },
+        {
           label: 'API',
           items: [
             { label: 'JavaScript API', slug: 'api/javascript' },

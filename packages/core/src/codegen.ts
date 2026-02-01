@@ -1073,29 +1073,32 @@ export class CodeGenerator {
    */
   private generateNativeArrayMethod(array: string, method: string, keyPath: string): string {
     const pathParts = keyPath.split('.');
-    const getValue =
-      pathParts.length === 1
-        ? `item?.${keyPath}`
-        : `((obj) => { ${pathParts.map((p) => `obj = obj?.${p}`).join('; ')}; return obj; })(item)`;
+
+    // Generate clean property access: a.price or a.meta.priority
+    const getProp = (varName: string) =>
+      pathParts.length === 1 ? `${varName}.${keyPath}` : `${varName}.${pathParts.join('.')}`;
+
+    // Check if array already has null coalescing (from SpreadAccess or pipe)
+    const safeArray = array.includes('?? []') ? array : `(${array} ?? [])`;
 
     if (method === 'sort') {
-      return `[...(${array} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : aVal < bVal ? -1 : aVal > bVal ? 1 : 0; })`;
+      return `[...${safeArray}].sort((a, b) => ${getProp('a')} - ${getProp('b')})`;
     }
 
     if (method === 'sortDesc') {
-      return `[...(${array} ?? [])].sort((a, b) => { const aVal = ((item) => ${getValue})(a), bVal = ((item) => ${getValue})(b); return aVal == null ? 1 : bVal == null ? -1 : bVal < aVal ? -1 : bVal > aVal ? 1 : 0; })`;
+      return `[...${safeArray}].sort((a, b) => ${getProp('b')} - ${getProp('a')})`;
     }
 
     if (method === 'groupBy') {
-      return `(${array} ?? []).reduce((acc, item) => { const key = String(${getValue}); (acc[key] = acc[key] || []).push(item); return acc; }, {})`;
+      return `${safeArray}.reduce((acc, item) => { const key = String(${getProp('item')}); (acc[key] = acc[key] || []).push(item); return acc; }, {})`;
     }
 
     if (method === 'keyBy') {
-      return `(${array} ?? []).reduce((acc, item) => { acc[String(${getValue})] = item; return acc; }, {})`;
+      return `${safeArray}.reduce((acc, item) => { acc[String(${getProp('item')})] = item; return acc; }, {})`;
     }
 
     // Fallback - shouldn't reach here
-    return `(${array} ?? []).${method}("${keyPath}")`;
+    return `${safeArray}.${method}("${keyPath}")`;
   }
 
   private generateCallExpression(node: AST.CallExpression): string {

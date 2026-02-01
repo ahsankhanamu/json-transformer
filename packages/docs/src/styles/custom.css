@@ -13,6 +13,11 @@
   --sl-color-accent-high: #4338ca;
 }
 
+/* Center content instead of right-aligning */
+[data-has-sidebar][data-has-toc] .main-pane {
+  --sl-content-margin-inline: auto !important;
+}
+
 [data-theme='dark'] {
   --sl-color-accent-low: #312e81;
   --sl-color-accent: #818cf8;
@@ -164,7 +169,13 @@
    CODE BLOCKS
    ============================================ */
 
+.expressive-code {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .expressive-code .frame {
+  width: 100% !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 0.5rem !important;
   overflow: hidden;
@@ -296,8 +307,15 @@
    TABLES - BEAUTIFUL STYLING
    ============================================ */
 
+/* Table wrapper - Starlight may wrap tables */
+.sl-markdown-content > div:has(> table),
 .sl-markdown-content table {
   width: 100% !important;
+  max-width: 100% !important;
+}
+
+.sl-markdown-content table {
+  display: table !important;
   border-collapse: separate !important;
   border-spacing: 0 !important;
   border: 1px solid #e2e8f0 !important;
@@ -305,6 +323,26 @@
   overflow: hidden !important;
   margin: 1.5rem 0 !important;
   font-size: 0.9rem !important;
+}
+
+.sl-markdown-content table thead {
+  display: table-header-group !important;
+  width: 100% !important;
+}
+
+.sl-markdown-content table tbody {
+  display: table-row-group !important;
+  width: 100% !important;
+}
+
+.sl-markdown-content table tr {
+  display: table-row !important;
+  width: 100% !important;
+}
+
+.sl-markdown-content table th,
+.sl-markdown-content table td {
+  display: table-cell !important;
 }
 
 [data-theme='dark'] .sl-markdown-content table {
@@ -363,4 +401,42 @@
 [data-theme='dark'] .sl-markdown-content table code {
   background: #312e81 !important;
   color: #c4b5fd !important;
+}
+
+/* ============================================
+   PAGINATION - COMPACT PREV/NEXT LINKS
+   ============================================ */
+
+.pagination-links {
+  gap: 1rem !important;
+  margin-top: 2rem !important;
+}
+
+.pagination-links a {
+  padding: 0.75rem 1rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+  font-size: 0.875rem !important;
+}
+
+[data-theme='dark'] .pagination-links a {
+  border-color: #334155 !important;
+}
+
+.pagination-links a:hover {
+  border-color: #6366f1 !important;
+  background: #f8fafc !important;
+}
+
+[data-theme='dark'] .pagination-links a:hover {
+  background: #1e293b !important;
+}
+
+.pagination-links .link-title {
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+}
+
+.pagination-links .link-page {
+  font-size: 0.75rem !important;
 }

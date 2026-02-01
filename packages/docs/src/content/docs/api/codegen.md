@@ -1,9 +1,9 @@
 ---
 title: Code Generation
 description: Generate JavaScript code from JSON Transformer expressions.
+sidebar:
+  label: Code Generation
 ---
-
-# Code Generation
 
 JSON Transformer can generate standalone JavaScript code from expressions. This is useful for:
 

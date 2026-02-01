@@ -1,9 +1,9 @@
 ---
 title: JavaScript API
 description: Reference for the JSON Transformer JavaScript API.
+sidebar:
+  label: JavaScript API
 ---
-
-# JavaScript API
 
 ## Installation
 

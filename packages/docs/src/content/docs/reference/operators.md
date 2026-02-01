@@ -1,9 +1,9 @@
 ---
 title: Operators
 description: Reference for JSON Transformer operators.
+sidebar:
+  label: Operators
 ---
-
-# Operators
 
 ## Arithmetic Operators
 

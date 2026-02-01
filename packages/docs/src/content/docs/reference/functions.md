@@ -1,9 +1,9 @@
 ---
 title: Built-in Functions
 description: Reference for all JSON Transformer built-in functions.
+sidebar:
+  label: Functions
 ---
-
-# Built-in Functions
 
 ## String Functions
 

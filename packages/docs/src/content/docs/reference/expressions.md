@@ -1,9 +1,9 @@
 ---
-title: Expressions
+title: Expression Syntax
 description: Complete reference for JSON Transformer expression syntax.
+sidebar:
+  label: Expressions
 ---
-
-# Expression Syntax
 
 ## Property Access
 
