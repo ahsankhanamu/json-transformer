@@ -35,6 +35,81 @@ npm run clean      # Clean build artifacts
 
 ## [Unreleased] - 2026-02-01
 
+### Arrow Function Implicit Property Access
+
+Added concise syntax for accessing properties inside arrow function bodies using `.property` notation.
+
+#### Syntax
+
+Inside arrow functions, `.property` automatically resolves to `param.property`:
+
+```javascript
+// These are equivalent:
+orders.filter(x => x.price > 20)
+orders.filter(x => .price > 20)     // Implicit: .price → x.price
+
+// Works with all array methods:
+orders.map(o => .product)           // → ["Widget", "Gadget", "Gizmo"]
+orders.find(o => .status === "shipped")
+orders.filter(o => .price > 20).map(o => .product)
+
+// Index access:
+arrays.map(a => .[0])               // First element of each sub-array
+
+// Method calls:
+tags.map(t => .toUpperCase())       // → ["ELECTRONICS", "SALE", "FEATURED"]
+
+// Nested properties:
+items.map(i => .info.name)          // → nested property from each item
+
+// Both sides of comparison:
+items.filter(x => .a > .b)          // Compare two properties
+```
+
+This provides a concise syntax similar to filter predicates (`[? .price > 20]`) but for native JavaScript array methods like `.map()`, `.filter()`, `.find()`, etc.
+
+#### Implementation
+
+- Added `arrowParamStack` to parser to track current arrow function parameter names
+- When parsing `.property` inside arrow body, resolve to `param.property` instead of `input.property`
+- Supports nested arrow functions (each level uses its own parameter)
+
+#### Files Changed
+
+| File | Changes |
+|------|---------|
+| `packages/core/src/parser.ts` | Added `arrowParamStack`, `parseArrowContextAccess()` method |
+| `packages/core/test/parser.test.ts` | Added 8 test cases for implicit property access |
+| `packages/docs/src/content/docs/reference/expressions.md` | Added documentation |
+
+---
+
+### Automatic Property Projection for Array Operations
+
+Property access after array operations (filter, slice) now automatically maps to extract that property from each element.
+
+```javascript
+// Before (explicit spread required):
+orders[? status === "shipped"][].product
+orders[0:2][].product
+
+// Now (automatic projection):
+orders[? status === "shipped"].product     // → ["Widget", "Gizmo"]
+orders[0:2].product                        // → ["Widget", "Gadget"]
+
+// Chained property access also works:
+items[? active].info.name                  // → nested property from each item
+items[0:2].info.name                       // → nested property from each sliced item
+```
+
+#### Implementation
+
+- Modified `generateMemberAccess()` in codegen to detect FilterAccess and SliceAccess as object
+- Added recursive detection for chained property access after filter/spread/slice
+- Added `isArrayProducingMemberAccess()` helper method
+
+---
+
 ### Pipe Property Access (jq-style)
 
 Added jq-inspired property access syntax after pipe operator for cleaner data transformations.

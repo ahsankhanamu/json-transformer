@@ -64,6 +64,35 @@ describe('Parser', () => {
       expect(result[0].id).toBe(1);
       expect(result[1].id).toBe(3);
     });
+
+    test('filter followed by property access maps automatically', () => {
+      expect(evaluate(testData, 'orders[? status == "shipped"].product')).toEqual([
+        'Widget',
+        'Gizmo',
+      ]);
+    });
+
+    test('filter followed by nested property access', () => {
+      const data = {
+        items: [
+          { info: { name: 'A' }, active: true },
+          { info: { name: 'B' }, active: false },
+          { info: { name: 'C' }, active: true },
+        ],
+      };
+      expect(evaluate(data, 'items[? active].info.name')).toEqual(['A', 'C']);
+    });
+
+    test('slice followed by property access maps automatically', () => {
+      expect(evaluate(testData, 'orders[0:2].product')).toEqual(['Widget', 'Gadget']);
+    });
+
+    test('slice followed by nested property access', () => {
+      const data = {
+        items: [{ info: { name: 'A' } }, { info: { name: 'B' } }, { info: { name: 'C' } }],
+      };
+      expect(evaluate(data, 'items[0:2].info.name')).toEqual(['A', 'B']);
+    });
   });
 
   describe('Arithmetic', () => {
@@ -290,6 +319,77 @@ describe('Parser', () => {
       expect(evaluate(testData, '{ fullName: `${user.firstName} ${user.lastName}` }')).toEqual({
         fullName: 'John Doe',
       });
+    });
+  });
+
+  describe('Arrow Function Implicit Property Access', () => {
+    test('.property in arrow resolves to param.property', () => {
+      expect(evaluate(testData, 'orders.find(o => .price > 40)')).toEqual({
+        id: 2,
+        product: 'Gadget',
+        price: 49.99,
+        quantity: 1,
+        status: 'pending',
+      });
+    });
+
+    test('.property with filter', () => {
+      const result = evaluate(testData, 'orders.filter(o => .status === "shipped")') as any[];
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(3);
+    });
+
+    test('.property with map', () => {
+      expect(evaluate(testData, 'orders.map(o => .product)')).toEqual([
+        'Widget',
+        'Gadget',
+        'Gizmo',
+      ]);
+    });
+
+    test('nested .property access', () => {
+      const data = {
+        items: [{ info: { name: 'A', value: 10 } }, { info: { name: 'B', value: 20 } }],
+      };
+      expect(evaluate(data, 'items.map(i => .info.name)')).toEqual(['A', 'B']);
+    });
+
+    test('.[index] in arrow', () => {
+      const data = {
+        arrays: [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+      };
+      expect(evaluate(data, 'arrays.map(a => .[0])')).toEqual([1, 3, 5]);
+    });
+
+    test('.method() call in arrow', () => {
+      expect(evaluate(testData, 'tags.map(t => .toUpperCase())')).toEqual([
+        'ELECTRONICS',
+        'SALE',
+        'FEATURED',
+      ]);
+    });
+
+    test('chained .property in arrow', () => {
+      expect(evaluate(testData, 'orders.filter(o => .price > 20).map(o => .product)')).toEqual([
+        'Widget',
+        'Gadget',
+      ]);
+    });
+
+    test('comparison with .property on both sides', () => {
+      const data = {
+        items: [
+          { a: 5, b: 3 },
+          { a: 2, b: 4 },
+          { a: 6, b: 6 },
+        ],
+      };
+      expect(evaluate(data, 'items.filter(x => .a > .b)')).toEqual([{ a: 5, b: 3 }]);
     });
   });
 

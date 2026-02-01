@@ -22,6 +22,9 @@ export class Parser {
   private tokens: Token[] = [];
   private current: number = 0;
   private inPipeObjectContext: boolean = false;
+  // Stack of arrow function parameter names (for nested arrows)
+  // When inside an arrow body, .property resolves to param.property
+  private arrowParamStack: string[] = [];
 
   constructor(private input: string) {}
 
@@ -387,6 +390,72 @@ export class Parser {
     return expr;
   }
 
+  // Parse .field access inside arrow function body (DOT already consumed)
+  // Returns param-based expression: .field becomes param.field, .[0] becomes param[0]
+  private parseArrowContextAccess(): AST.Expression {
+    const paramName = this.arrowParamStack[this.arrowParamStack.length - 1];
+    let expr: AST.Expression = { type: 'Identifier', name: paramName };
+
+    // Check for .[index] syntax
+    if (this.check(TokenType.LBRACKET)) {
+      this.advance(); // consume [
+      const index = this.parseExpression();
+      this.consume(TokenType.RBRACKET, 'Expected "]"');
+      expr = { type: 'IndexAccess', object: expr, index, optional: false };
+    } else if (this.check(TokenType.IDENTIFIER)) {
+      // .field
+      const name = this.advance();
+      expr = {
+        type: 'MemberAccess',
+        object: expr,
+        property: name.value as string,
+        optional: false,
+      };
+    } else {
+      // Just . by itself - return the parameter identifier
+      return expr;
+    }
+
+    // Allow chaining: .field.nested, .field[0], .field.method()
+    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
+      if (this.match(TokenType.DOT)) {
+        if (this.check(TokenType.LBRACKET)) {
+          this.advance();
+          const idx = this.parseExpression();
+          this.consume(TokenType.RBRACKET, 'Expected "]"');
+          expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+        } else {
+          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
+          expr = {
+            type: 'MemberAccess',
+            object: expr,
+            property: name.value as string,
+            optional: false,
+          };
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        const idx = this.parseExpression();
+        this.consume(TokenType.RBRACKET, 'Expected "]"');
+        expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
+      }
+
+      // Handle method calls: .method()
+      if (this.check(TokenType.LPAREN)) {
+        this.advance();
+        const args: AST.Expression[] = [];
+        if (!this.check(TokenType.RPAREN)) {
+          do {
+            args.push(this.parseExpression());
+          } while (this.match(TokenType.COMMA));
+        }
+        this.consume(TokenType.RPAREN, 'Expected ")"');
+        expr = { type: 'CallExpression', callee: expr, arguments: args };
+      }
+    }
+
+    return expr;
+  }
+
   // Ternary: condition ? then : else
   private parseTernary(): AST.Expression {
     const test = this.parseLogicalOr();
@@ -692,6 +761,11 @@ export class Parser {
       if (this.inPipeObjectContext) {
         return this.parsePipeContextAccess();
       }
+      // In arrow function body, .field refers to the first parameter
+      // e.g., orders.find(o => .price > 10) means o.price > 10
+      if (this.arrowParamStack.length > 0) {
+        return this.parseArrowContextAccess();
+      }
       // Otherwise, .field refers to current input (CurrentAccess)
       if (this.check(TokenType.IDENTIFIER)) {
         const name = this.advance();
@@ -726,7 +800,10 @@ export class Parser {
 
       // Check for arrow function: identifier => expr
       if (this.match(TokenType.ARROW)) {
+        // Push param to stack so .property inside body resolves to param.property
+        this.arrowParamStack.push(name);
         const body = this.parseExpression();
+        this.arrowParamStack.pop();
         return {
           type: 'ArrowFunction',
           params: [{ type: 'Parameter', name }],
@@ -941,6 +1018,7 @@ export class Parser {
     // Empty parens - must be arrow function with no params
     if (this.match(TokenType.RPAREN)) {
       this.consume(TokenType.ARROW, 'Expected "=>" after "()"');
+      // No params, so no implicit property access available
       const body = this.parseExpression();
       return { type: 'ArrowFunction', params: [], body };
     }
@@ -959,7 +1037,10 @@ export class Parser {
 
       this.consume(TokenType.RPAREN, 'Expected ")" after parameters');
       this.consume(TokenType.ARROW, 'Expected "=>" after parameters');
+      // Push first param to stack so .property inside body resolves to param.property
+      this.arrowParamStack.push(params[0].name);
       const body = this.parseExpression();
+      this.arrowParamStack.pop();
       return { type: 'ArrowFunction', params, body };
     }
 
@@ -968,7 +1049,10 @@ export class Parser {
     // Check for arrow
     if (this.match(TokenType.ARROW)) {
       const params = [this.exprToParam(first)];
+      // Push param to stack so .property inside body resolves to param.property
+      this.arrowParamStack.push(params[0].name);
       const body = this.parseExpression();
+      this.arrowParamStack.pop();
       return { type: 'ArrowFunction', params, body };
     }
 

@@ -408,6 +408,39 @@ export class CodeGenerator {
       return `(${array} ?? []).map((item, index, arr) => item?.${node.property})`;
     }
 
+    // Special case: FilterAccess followed by MemberAccess = filter then map
+    // orders[? status === "shipped"].product → filter then map to property
+    if (node.object.type === 'FilterAccess') {
+      const filterExpr = this.generateFilterAccess(node.object);
+      if (this.options.strict) {
+        const path = this.buildPathFromNode(node.object.object);
+        return `(${filterExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[?]"))`;
+      }
+      return `(${filterExpr}).map((item, index, arr) => item?.${node.property})`;
+    }
+
+    // Special case: SliceAccess followed by MemberAccess = slice then map
+    // orders[0:2].product → slice then map to property
+    if (node.object.type === 'SliceAccess') {
+      const sliceExpr = this.generateSliceAccess(node.object);
+      if (this.options.strict) {
+        const path = this.buildPathFromNode(node.object.object);
+        return `(${sliceExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[:]"))`;
+      }
+      return `(${sliceExpr}).map((item, index, arr) => item?.${node.property})`;
+    }
+
+    // Special case: Chained property after array-producing operation
+    // items[? active].info.name → need to keep mapping for each chained property
+    // Detect if object is itself a MemberAccess on FilterAccess or SpreadAccess
+    if (node.object.type === 'MemberAccess' && this.isArrayProducingMemberAccess(node.object)) {
+      const arrayExpr = this.generateExpression(node.object);
+      if (this.options.strict) {
+        return `(${arrayExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", ""))`;
+      }
+      return `(${arrayExpr}).map((item, index, arr) => item?.${node.property})`;
+    }
+
     const object = this.generateExpression(node.object);
 
     // In strict mode, use strictGet for validation with path info
@@ -464,6 +497,26 @@ export class CodeGenerator {
     }
 
     return null;
+  }
+
+  /**
+   * Check if a MemberAccess node produces an array (due to spread/filter/slice + property)
+   * This is used to detect when chained property access needs to keep mapping
+   */
+  private isArrayProducingMemberAccess(node: AST.MemberAccess): boolean {
+    // Direct spread, filter, or slice followed by property
+    if (
+      node.object.type === 'SpreadAccess' ||
+      node.object.type === 'FilterAccess' ||
+      node.object.type === 'SliceAccess'
+    ) {
+      return true;
+    }
+    // Recursive: chained property access on array-producing operation
+    if (node.object.type === 'MemberAccess') {
+      return this.isArrayProducingMemberAccess(node.object);
+    }
+    return false;
   }
 
   /**

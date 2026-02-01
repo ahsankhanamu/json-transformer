@@ -100,8 +100,8 @@ export const expression = writable(`{
   fullName: \`\${user.firstName} \${user.lastName}\`,
   location: \`\${user.address.city}, \${user.address.country}\`,
 
-  // Spread syntax: [? filter] and [] map
-  shippedProducts: orders[? status === "shipped"][].product,
+  // Filter with auto-projection (no need for [] after filter)
+  shippedProducts: orders[? status === "shipped"].product,
 
   // Piped helpers: filter() and map()
   shippedProducts2: orders | filter(o => o.status === "shipped") | map(o => o.product),

@@ -54,6 +54,30 @@ orders[? .price > 20]              // Filter by price
 orders[? $index > 0]               // Skip first item
 ```
 
+### Automatic Property Projection
+
+Property access after array operations (filter, slice, spread) automatically maps to extract that property from each element:
+
+```javascript
+// Filter + property
+orders[? status == "shipped"].product      // → ["Widget", "Gizmo"]
+
+// Slice + property
+orders[0:2].product                        // → ["Widget", "Gadget"]
+
+// Spread + property (already supported)
+orders[].product                           // → ["Widget", "Gadget", "Gizmo"]
+
+// Chained property access also works:
+items[? active].info.name                  // → nested property from each filtered item
+items[0:2].info.name                       // → nested property from each sliced item
+```
+
+This is equivalent to but more concise than:
+```javascript
+orders[? status == "shipped"][].product    // Explicit spread
+```
+
 ## Context Variables
 
 When using JSON Transformer-style iteration (`[*]` and `[?]`), these context variables are available:
@@ -112,6 +136,32 @@ orders.filter(x => x.price > 20)            // With condition
 orders.map((item, i) => `${i}: ${item.name}`)  // With index
 orders.sort((a, b) => a.price - b.price)    // Comparator
 ```
+
+### Implicit Property Access
+
+Inside arrow function bodies, `.property` automatically resolves to `param.property`:
+
+```javascript
+// These are equivalent:
+orders.filter(x => x.price > 20)
+orders.filter(x => .price > 20)
+
+// Implicit access works with all arrow expressions:
+orders.map(o => .product)                   // → ["Widget", "Gadget", "Gizmo"]
+orders.find(o => .status === "shipped")     // → first shipped order
+orders.filter(o => .price > 20).map(o => .product)  // Chain with implicit access
+
+// Works with index access too:
+arrays.map(a => .[0])                       // First element of each array
+
+// Works with method calls:
+tags.map(t => .toUpperCase())               // → ["ELECTRONICS", "SALE", "FEATURED"]
+
+// Nested property access:
+items.map(i => .info.name)                  // → nested property from each item
+```
+
+This provides a concise syntax similar to the filter predicate (`[? .price > 20]`) but for native JavaScript array methods.
 
 ## Expressions
 
