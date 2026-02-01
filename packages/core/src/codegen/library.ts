@@ -58,57 +58,9 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
   // ============================================================================
 
   protected generateMemberAccess(node: AST.MemberAccess): string {
-    // SpreadAccess + MemberAccess = map operation
-    if (node.object.type === 'SpreadAccess') {
-      const array = this.generateExpression(node.object.object);
-      if (this.strict) {
-        const path = this.buildPathFromNode(node.object.object);
-        return `__helpers.strictMap(${array}, (item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[*]"), "${path}")`;
-      }
-      return `(${array} ?? []).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // FilterAccess + MemberAccess = filter then map
-    if (node.object.type === 'FilterAccess') {
-      const filterExpr = this.generateFilterAccess(node.object);
-      if (this.strict) {
-        const path = this.buildPathFromNode(node.object.object);
-        return `(${filterExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[?]"))`;
-      }
-      return `(${filterExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // SliceAccess + MemberAccess = slice then map
-    if (node.object.type === 'SliceAccess') {
-      const sliceExpr = this.generateSliceAccess(node.object);
-      if (this.strict) {
-        const path = this.buildPathFromNode(node.object.object);
-        return `(${sliceExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[:]"))`;
-      }
-      return `(${sliceExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // CallExpression (array method) + MemberAccess = call then map
-    // But skip if the property is itself a method name (method chaining like .filter().map())
-    if (
-      node.object.type === 'CallExpression' &&
-      this.isArrayReturningCall(node.object) &&
-      !BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.property)
-    ) {
-      const callExpr = this.generateExpression(node.object);
-      if (this.strict) {
-        return `(${callExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", ""))`;
-      }
-      return `(${callExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // Chained property after array-producing operation
-    if (node.object.type === 'MemberAccess' && this.isArrayProducingMemberAccess(node.object)) {
-      const arrayExpr = this.generateExpression(node.object);
-      if (this.strict) {
-        return `(${arrayExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", ""))`;
-      }
-      return `(${arrayExpr}).map((item, index, arr) => item?.${node.property})`;
+    // Auto-project property access after array-producing expressions
+    if (this.shouldAutoProject(node)) {
+      return this.generateAutoProjection(node);
     }
 
     const object = this.generateExpression(node.object);
@@ -120,6 +72,54 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
 
     const op = node.optional || !this.strict ? '?.' : '.';
     return `${object}${op}${node.property}`;
+  }
+
+  /** Generate auto-projection for property access after array-producing expressions */
+  private generateAutoProjection(node: AST.MemberAccess): string {
+    const obj = node.object;
+
+    // SpreadAccess uses strictMap in strict mode
+    if (obj.type === 'SpreadAccess') {
+      const array = this.generateExpression(obj.object);
+      if (this.strict) {
+        const path = this.buildPathFromNode(obj.object);
+        return `__helpers.strictMap(${array}, (item, index, arr) => __helpers.strictGet(item, "${node.property}", "${path}[*]"), "${path}")`;
+      }
+      return `(${array} ?? []).map((item, index, arr) => item?.${node.property})`;
+    }
+
+    // Other array-producing expressions use regular map
+    const arrayExpr = this.generateExpression(obj);
+    if (this.strict) {
+      const pathSuffix = this.getPathSuffix(obj);
+      const basePath = this.getBasePath(obj);
+      const fullPath = basePath ? `${basePath}${pathSuffix}` : '';
+      return `(${arrayExpr}).map((item, index, arr) => __helpers.strictGet(item, "${node.property}", "${fullPath}"))`;
+    }
+    return `(${arrayExpr}).map((item, index, arr) => item?.${node.property})`;
+  }
+
+  /** Get path suffix for strict mode error messages */
+  private getPathSuffix(node: AST.Expression): string {
+    switch (node.type) {
+      case 'FilterAccess':
+        return '[?]';
+      case 'SliceAccess':
+        return '[:]';
+      default:
+        return '';
+    }
+  }
+
+  /** Get base path for strict mode error messages */
+  private getBasePath(node: AST.Expression): string {
+    switch (node.type) {
+      case 'FilterAccess':
+      case 'SliceAccess':
+        return this.buildPathFromNode(node.object);
+      default:
+        return '';
+    }
   }
 
   // ============================================================================

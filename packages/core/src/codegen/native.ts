@@ -44,43 +44,23 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
   // ============================================================================
 
   protected generateMemberAccess(node: AST.MemberAccess): string {
-    // SpreadAccess + MemberAccess = map operation
-    if (node.object.type === 'SpreadAccess') {
-      const array = this.generateExpression(node.object.object);
-      return `(${array} ?? []).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // FilterAccess + MemberAccess = filter then map
-    if (node.object.type === 'FilterAccess') {
-      const filterExpr = this.generateFilterAccess(node.object);
-      return `(${filterExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // SliceAccess + MemberAccess = slice then map
-    if (node.object.type === 'SliceAccess') {
-      const sliceExpr = this.generateSliceAccess(node.object);
-      return `(${sliceExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // CallExpression (array method) + MemberAccess = call then map
-    // But skip if the property is itself a method name (method chaining like .filter().map())
-    if (
-      node.object.type === 'CallExpression' &&
-      this.isArrayReturningCall(node.object) &&
-      !BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.property)
-    ) {
-      const callExpr = this.generateExpression(node.object);
-      return `(${callExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    // Chained property after array-producing operation
-    if (node.object.type === 'MemberAccess' && this.isArrayProducingMemberAccess(node.object)) {
-      const arrayExpr = this.generateExpression(node.object);
+    // Auto-project property access after array-producing expressions
+    if (this.shouldAutoProject(node)) {
+      const arrayExpr = this.generateArrayExpression(node.object);
       return `(${arrayExpr}).map((item, index, arr) => item?.${node.property})`;
     }
 
     const object = this.generateExpression(node.object);
     return `${object}?.${node.property}`;
+  }
+
+  /** Generate the array expression, handling SpreadAccess specially */
+  private generateArrayExpression(node: AST.Expression): string {
+    if (node.type === 'SpreadAccess') {
+      const array = this.generateExpression(node.object);
+      return `${array} ?? []`;
+    }
+    return this.generateExpression(node);
   }
 
   // ============================================================================

@@ -451,23 +451,6 @@ export abstract class BaseCodeGenerator {
     }
   }
 
-  protected isArrayProducingMemberAccess(node: AST.MemberAccess): boolean {
-    if (
-      node.object.type === 'SpreadAccess' ||
-      node.object.type === 'FilterAccess' ||
-      node.object.type === 'SliceAccess'
-    ) {
-      return true;
-    }
-    if (node.object.type === 'MemberAccess') {
-      return this.isArrayProducingMemberAccess(node.object);
-    }
-    if (node.object.type === 'CallExpression') {
-      return this.isArrayReturningCall(node.object);
-    }
-    return false;
-  }
-
   /** Known array methods that return arrays */
   protected static ARRAY_RETURNING_METHODS = new Set([
     'map',
@@ -483,12 +466,44 @@ export abstract class BaseCodeGenerator {
     'toSpliced',
   ]);
 
+  /**
+   * Check if an expression produces an array that should auto-project on property access.
+   * Returns true for: SpreadAccess, FilterAccess, SliceAccess, array-returning CallExpressions,
+   * and MemberAccess chains that end in any of these.
+   */
+  protected isArrayProducingExpression(node: AST.Expression): boolean {
+    switch (node.type) {
+      case 'SpreadAccess':
+      case 'FilterAccess':
+      case 'SliceAccess':
+        return true;
+      case 'CallExpression':
+        return this.isArrayReturningCall(node);
+      case 'MemberAccess':
+        return this.isArrayProducingExpression(node.object);
+      default:
+        return false;
+    }
+  }
+
   /** Check if a CallExpression is a call to a known array-returning method */
   protected isArrayReturningCall(node: AST.CallExpression): boolean {
     if (node.callee.type === 'MemberAccess') {
       return BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.callee.property);
     }
     return false;
+  }
+
+  /**
+   * Check if property access after an array-producing expression should auto-project.
+   * Skips auto-projection when the property is itself an array method (method chaining).
+   */
+  protected shouldAutoProject(node: AST.MemberAccess): boolean {
+    // Skip if property is an array method name (method chaining like .filter().map())
+    if (BaseCodeGenerator.ARRAY_RETURNING_METHODS.has(node.property)) {
+      return false;
+    }
+    return this.isArrayProducingExpression(node.object);
   }
 
   protected containsPipeContextRef(node: AST.Expression): boolean {
