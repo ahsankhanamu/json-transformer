@@ -1,6 +1,6 @@
 {
   "name": "@ahsankhanamu/json-transformer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JSON Query and Transformation Language",
   "type": "module",
   "main": "dist/index.js",
@@ -11,15 +11,36 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
     "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["json", "query", "transformation", "parser"],
+  "keywords": [
+    "json",
+    "query",
+    "transformation",
+    "parser",
+    "jq",
+    "jsonpath",
+    "compile"
+  ],
+  "author": "Ahsan Khan",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ahsankhanamu/json-transformer.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://json-transformer-docs.vercel.app",
+  "bugs": {
+    "url": "https://github.com/ahsankhanamu/json-transformer/issues"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",
