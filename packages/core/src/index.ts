@@ -23,7 +23,7 @@
  */
 
 import { parse } from './parser.js';
-import { generate, CodeGenOptions } from './codegen.js';
+import { generate, FullCodeGenOptions } from './codegen.js';
 import { helpers } from './runtime.js';
 import * as AST from './ast.js';
 
@@ -33,7 +33,7 @@ export { TokenType } from './tokens.js';
 export { Lexer, tokenize, LexerError } from './lexer.js';
 export { Parser, parse, ParseError } from './parser.js';
 export { CodeGenerator, generate } from './codegen.js';
-export type { CodeGenOptions } from './codegen.js';
+export type { CodeGenOptions, FullCodeGenOptions } from './codegen.js';
 export { helpers, TransformError } from './runtime.js';
 export * as AST from './ast.js';
 
@@ -41,7 +41,7 @@ export * as AST from './ast.js';
 // MAIN API
 // =============================================================================
 
-export interface CompileOptions extends CodeGenOptions {
+export interface CompileOptions extends FullCodeGenOptions {
   /** Cache compiled functions */
   cache?: boolean;
 }
@@ -156,7 +156,7 @@ export function parseExpression(expression: string): AST.Program {
  * const native = toJS('orders | sort(.price)', { native: true });
  * ```
  */
-export function toJS(expression: string, options: CodeGenOptions = {}): string {
+export function toJS(expression: string, options: FullCodeGenOptions = {}): string {
   const ast = parse(expression);
   return generate(ast, options);
 }
