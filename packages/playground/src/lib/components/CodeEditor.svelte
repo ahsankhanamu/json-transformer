@@ -18,8 +18,15 @@
   import {
     previewExpression,
     inputPaths as inputPathsStore,
+    getTokenizer,
   } from '$lib/stores/transformerStore.js';
   import { get } from 'svelte/store';
+  import {
+    findChildProperties,
+    extractPipeSourceWithTokenizer,
+    getJSMethods,
+    getPathType,
+  } from '$lib/autocomplete/completions.js';
 
   // Ghost text widget for completion preview
   class GhostTextWidget extends WidgetType {
@@ -90,6 +97,7 @@
 
   // Create input path autocomplete source (property suggestions from input JSON)
   // Shows paths up to ONE level deeper than what user has typed
+  // Also falls back to JS methods when no properties are found
   function inputPathCompletions(context) {
     // Read from store directly to ensure we get current value (not stale prop closure)
     const currentInputPaths = get(inputPathsStore);
@@ -125,16 +133,37 @@
         // Filter by what's typed after the dot
         if (propertyPrefix && !remainder.toLowerCase().startsWith(propertyPrefix)) continue;
 
+        // Check if this path has children (for auto-triggering next autocomplete)
+        const hasChildren = currentInputPaths.some(
+          (child) =>
+            child.path.toLowerCase().startsWith(p.path.toLowerCase() + '.') ||
+            child.path.toLowerCase().startsWith(p.path.toLowerCase() + '[')
+        );
+
         options.push({
           label: remainder,
           type: p.type,
           detail: p.detail,
           boost: 3, // Higher boost for property completions
           fullPath: p.path, // Store full path for preview evaluation
+          hasChildren,
         });
       }
 
-      if (options.length === 0) return null;
+      // If no dot-children found, show JS methods based on the value's type
+      // This handles arrays (orders.), strings (user.firstName.), numbers (user.age.)
+      if (options.length === 0) {
+        const valueType = getPathType(currentInputPaths, parentPath);
+        const methods = getJSMethods(propertyPrefix, valueType);
+        if (methods.length > 0) {
+          return {
+            from: fullMatch.from + lastDotIndex + 1,
+            options: methods,
+            validFor: /^[\w]*$/,
+          };
+        }
+        return null;
+      }
 
       return {
         from: fullMatch.from + lastDotIndex + 1, // Start after the dot
@@ -160,12 +189,20 @@
       // Path must start with typed text (case-insensitive)
       if (!pathLower.startsWith(typedLower)) continue;
 
+      // Check if this path has children (for auto-triggering next autocomplete)
+      const hasChildren = currentInputPaths.some(
+        (child) =>
+          child.path.toLowerCase().startsWith(pathLower + '.') ||
+          child.path.toLowerCase().startsWith(pathLower + '[')
+      );
+
       options.push({
         label: p.path,
         type: p.type,
         detail: p.detail,
         boost: 2, // Boost input paths above functions
         fullPath: p.path, // Store full path for preview evaluation
+        hasChildren,
       });
     }
 
@@ -221,46 +258,104 @@
     };
   }
 
-  // Create dot-completion for methods after a dot
+  // Show JS methods after properties that don't have dot-children in input
+  // This handles: leaf properties (strings, numbers) AND arrays (which have bracket children)
+  // Methods are filtered by the value's type (string, array, number, etc.)
   function dotCompletions(context) {
     const beforeDot = context.matchBefore(/\.[\w]*/);
     if (!beforeDot) return null;
 
-    const word = beforeDot.text.slice(1); // Remove the dot
-    const options = [];
+    const currentInputPaths = get(inputPathsStore);
+    let parentPath = '';
 
-    // Common JS methods that make sense in transformer context
-    const methods = [
-      { name: 'length', type: 'property' },
-      { name: 'toString', type: 'method', apply: 'toString()' },
-      { name: 'toFixed', type: 'method', apply: 'toFixed(2)' },
-      { name: 'charAt', type: 'method', apply: 'charAt(0)' },
-      { name: 'slice', type: 'method', apply: 'slice(0)' },
-      { name: 'includes', type: 'method', apply: 'includes("")' },
-      { name: 'indexOf', type: 'method', apply: 'indexOf("")' },
-      { name: 'map', type: 'method', apply: 'map(x => x)' },
-      { name: 'filter', type: 'method', apply: 'filter(x => x)' },
-      { name: 'find', type: 'method', apply: 'find(x => x)' },
-      { name: 'reduce', type: 'method', apply: 'reduce((acc, x) => acc, 0)' },
-      { name: 'join', type: 'method', apply: 'join(", ")' },
-      { name: 'split', type: 'method', apply: 'split("")' },
-      { name: 'toLowerCase', type: 'method', apply: 'toLowerCase()' },
-      { name: 'toUpperCase', type: 'method', apply: 'toUpperCase()' },
-      { name: 'trim', type: 'method', apply: 'trim()' },
-    ];
+    // Check if parent path has DOT children - if so, inputPathCompletions handles it
+    const fullMatch = context.matchBefore(/[\w$][\w$.[\]]*\.[\w]*$/);
+    if (fullMatch) {
+      const typed = fullMatch.text;
+      const lastDotIndex = typed.lastIndexOf('.');
+      parentPath = typed.slice(0, lastDotIndex);
 
-    for (const m of methods) {
-      if (m.name.toLowerCase().startsWith(word.toLowerCase())) {
-        options.push({
-          label: m.name,
-          type: m.type,
-          apply: m.apply || m.name,
-        });
-      }
+      // Only check for DOT children (not bracket children)
+      // This allows arrays to show methods like .find(), .filter(), .map()
+      const hasDotChildren = currentInputPaths.some((p) =>
+        p.path.toLowerCase().startsWith(parentPath.toLowerCase() + '.')
+      );
+      // If there are dot children, let inputPathCompletions handle it
+      if (hasDotChildren) return null;
     }
+
+    const word = beforeDot.text.slice(1); // Remove the dot
+
+    // Get type-specific methods based on the parent path's type
+    const valueType = parentPath ? getPathType(currentInputPaths, parentPath) : 'unknown';
+    const options = getJSMethods(word, valueType);
+
+    if (options.length === 0) return null;
 
     return {
       from: beforeDot.from + 1, // After the dot
+      options,
+      validFor: /^[\w]*$/,
+    };
+  }
+
+  // Pipe property access: user | .firstName, user | .address | .city
+  // Shows properties of the piped value using the tokenizer for accurate parsing
+  function pipePropertyCompletions(context) {
+    // Match pattern: something | .property
+    const pipeMatch = context.matchBefore(/\|\s*\.[\w]*$/);
+    if (!pipeMatch) return null;
+
+    const currentInputPaths = get(inputPathsStore);
+    if (currentInputPaths.length === 0) return null;
+
+    // Extract what's typed after |.
+    const afterPipeDot = pipeMatch.text.match(/\|\s*\.([\w]*)$/);
+    if (!afterPipeDot) return null;
+    const propertyPrefix = afterPipeDot[1].toLowerCase();
+
+    // Find the position where | starts and where . is
+    const pipePos = pipeMatch.from;
+    const dotPos = pipeMatch.from + pipeMatch.text.indexOf('.');
+
+    // Get text before the pipe to find the source path
+    const textBeforePipe = context.state.doc.sliceString(0, pipePos).trim();
+
+    // Use tokenizer if available for accurate parsing
+    let sourcePath = null;
+    const tokenizer = getTokenizer();
+
+    if (tokenizer) {
+      // Use tokenizer-based extraction (handles complex expressions)
+      sourcePath = extractPipeSourceWithTokenizer(
+        tokenizer.tokenize,
+        tokenizer.TokenType,
+        textBeforePipe,
+        currentInputPaths
+      );
+    } else {
+      // Fallback to regex for simple cases
+      const sourceMatch = textBeforePipe.match(/([\w$][\w$.]*)\s*$/);
+      sourcePath = sourceMatch?.[1] || null;
+    }
+
+    if (!sourcePath) return null;
+
+    // Find children of the source path
+    let options = findChildProperties(currentInputPaths, sourcePath, propertyPrefix);
+
+    // Add boost for pipe property completions
+    options = options.map((opt) => ({ ...opt, boost: 4 }));
+
+    // If no input properties found, fall back to JS methods
+    if (options.length === 0) {
+      options = getJSMethods(propertyPrefix);
+    }
+
+    if (options.length === 0) return null;
+
+    return {
+      from: dotPos + 1, // After the dot
       options,
       validFor: /^[\w]*$/,
     };
@@ -280,7 +375,12 @@
         return [
           javascript(),
           autocompletion({
-            override: [inputPathCompletions, transformerCompletions, dotCompletions],
+            override: [
+              pipePropertyCompletions,
+              inputPathCompletions,
+              transformerCompletions,
+              dotCompletions,
+            ],
             icons: true,
             optionClass: (completion) => `cm-completion-${completion.type}`,
             // Don't auto-accept - require explicit Tab/Enter/Click
@@ -419,10 +519,13 @@
           value = newValue;
           onchange(newValue);
         }
+        // Always clear preview when document changes - let main evaluation take over
+        // This is the primary source of truth for clearing previews
+        previewExpression.set(null);
       }
     });
 
-    // Track completion selection for ghost text preview and live evaluation
+    // Track completion selection for ghost text and preview evaluation
     let lastSelectedLabel = null;
     let wasAutocompleteOpen = false;
 
@@ -433,7 +536,10 @@
       const currentLabel = completion?.label || null;
 
       // Only update when selection or open state changes
-      if (currentLabel !== lastSelectedLabel || wasAutocompleteOpen !== isAutocompleteOpen) {
+      const selectionChanged = currentLabel !== lastSelectedLabel;
+      const openStateChanged = wasAutocompleteOpen !== isAutocompleteOpen;
+
+      if (selectionChanged || openStateChanged) {
         const justClosed = wasAutocompleteOpen && !isAutocompleteOpen;
         lastSelectedLabel = currentLabel;
         wasAutocompleteOpen = isAutocompleteOpen;
@@ -443,16 +549,17 @@
         if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
 
         if (completion && completions) {
-          // Autocomplete is open with a selection
+          // Autocomplete is open with a selection - show ghost text
           const applyText =
             typeof completion.apply === 'string' ? completion.apply : completion.label;
           const typed = update.state.doc.sliceString(completions.from, completions.to);
 
-          // Ghost text (inline preview of completion)
+          // Ghost text shows the rest of the completion inline
           let ghostText = '';
           if (applyText.toLowerCase().startsWith(typed.toLowerCase())) {
             ghostText = applyText.slice(typed.length);
           }
+
           const pos = completions.to;
           pendingGhostUpdate = requestAnimationFrame(() => {
             if (editorView) {
@@ -462,22 +569,21 @@
             }
           });
 
-          // Preview: only for properties (items with fullPath)
+          // Preview: only for properties (items with fullPath), not functions
           const fullPath = completion.fullPath;
           if (fullPath && lang === 'transformer') {
             previewDebounceTimer = setTimeout(() => {
               previewExpression.set(fullPath);
             }, 100);
           }
-          // For methods/functions: don't change preview (keep last property preview)
         } else if (justClosed) {
-          // Autocomplete just closed - clear ghost text and preview
+          // Autocomplete closed - clear ghost text
+          // Note: preview is cleared by docUpdateListener when text changes
           pendingGhostUpdate = requestAnimationFrame(() => {
             if (editorView) {
               editorView.dispatch({ effects: setGhostText.of(null) });
             }
           });
-          previewExpression.set(null);
         }
       }
     });
@@ -540,10 +646,10 @@
   :global(.cm-scroller) {
     overflow: auto !important;
   }
-  /* Ghost text preview for autocomplete */
+  /* Ghost text preview for autocomplete - inline completion hint */
   :global(.cm-ghost-text) {
-    opacity: 0.4;
-    font-style: italic;
+    color: var(--color-text-muted);
+    opacity: 0.5;
     pointer-events: none;
   }
 </style>
