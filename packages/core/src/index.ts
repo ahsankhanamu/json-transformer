@@ -6,16 +6,19 @@
  *
  * @example
  * ```ts
- * import { compile, evaluate } from '@ahsankhanamu/json-transformer';
+ * import { compile, evaluate, toJS } from '@anthropic/json-transformer';
  *
  * // Compile an expression
  * const fn = compile('user.name | upper');
  * const result = fn({ user: { name: 'john' } });
  * // result: 'JOHN'
  *
- * // Or evaluate directly
- * const result = evaluate('price * quantity', { price: 10, quantity: 5 });
+ * // Or evaluate directly (data first)
+ * const result = evaluate({ price: 10, quantity: 5 }, 'price * quantity');
  * // result: 50
+ *
+ * // Generate JavaScript code
+ * const code = toJS('user.name | upper');
  * ```
  */
 
@@ -105,20 +108,20 @@ export function compile(expression: string, options: CompileOptions = {}): Trans
 }
 
 /**
- * Evaluate an expression directly
+ * Evaluate an expression directly (data first)
  *
  * @example
  * ```ts
- * const result = evaluate('firstName & " " & lastName', {
- *   firstName: 'John',
- *   lastName: 'Doe'
- * });
+ * const result = evaluate(
+ *   { firstName: 'John', lastName: 'Doe' },
+ *   'firstName & " " & lastName'
+ * );
  * // result: 'John Doe'
  * ```
  */
 export function evaluate(
-  expression: string,
   input: unknown,
+  expression: string,
   options: EvaluateOptions = {}
 ): unknown {
   const fn = compile(expression, { strict: options.strict, cache: true });
@@ -143,17 +146,23 @@ export function parseExpression(expression: string): AST.Program {
  *
  * @example
  * ```ts
- * const code = toJavaScript('price * quantity');
+ * const code = toJS('price * quantity');
  * console.log(code);
  * // function transform(input, bindings = {}) {
- * //   return (input?.price ?? 0) * (input?.quantity ?? 0);
+ * //   return input?.price * input?.quantity;
  * // }
+ *
+ * // Native JS (no helpers)
+ * const native = toJS('orders | sort(.price)', { native: true });
  * ```
  */
-export function toJavaScript(expression: string, options: CodeGenOptions = {}): string {
+export function toJS(expression: string, options: CodeGenOptions = {}): string {
   const ast = parse(expression);
   return generate(ast, options);
 }
+
+/** @deprecated Use toJS instead */
+export const toJavaScript = toJS;
 
 /**
  * Validate an expression without executing it
@@ -275,7 +284,8 @@ export default {
   compile,
   evaluate,
   parse: parseExpression,
-  toJavaScript,
+  toJS,
+  toJavaScript, // deprecated alias
   validate,
   clearCache,
   getCacheStats,

@@ -132,7 +132,7 @@ for (const expr of expressions) {
     console.log();
 
     // Evaluate
-    const result = evaluate(expr, testData);
+    const result = evaluate(testData, expr);
     console.log('Result:', JSON.stringify(result, null, 2));
   } catch (err) {
     console.log('❌ Error:', (err as Error).message);
@@ -171,7 +171,7 @@ const compiledTime = performance.now() - start;
 // Measure direct evaluation (includes parsing)
 const start2 = performance.now();
 for (let i = 0; i < iterations; i++) {
-  evaluate(perfExpr, testData);
+  evaluate(testData, perfExpr);
 }
 const evalTime = performance.now() - start2;
 
@@ -228,7 +228,7 @@ for (const test of strictTests) {
 
   // Forgiving mode
   try {
-    const result = evaluate(test.expr, testData, { strict: false });
+    const result = evaluate(testData, test.expr, { strict: false });
     console.log(`  Forgiving mode: ${JSON.stringify(result)}`);
   } catch (err) {
     console.log(`  Forgiving mode error: ${(err as Error).message}`);
@@ -236,7 +236,7 @@ for (const test of strictTests) {
 
   // Strict mode
   try {
-    const result = evaluate(test.expr, testData, { strict: true });
+    const result = evaluate(testData, test.expr, { strict: true });
     console.log(`  Strict mode: ${JSON.stringify(result)}`);
   } catch (err: any) {
     console.log(`  Strict mode error:`);

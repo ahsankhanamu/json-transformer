@@ -2,7 +2,7 @@
  * Parser Tests
  */
 
-import { evaluate, validate, toJavaScript } from '../src/index.js';
+import { evaluate, validate, toJS } from '../src/index.js';
 
 describe('Parser', () => {
   const testData = {
@@ -23,43 +23,43 @@ describe('Parser', () => {
 
   describe('Property Access', () => {
     test('simple property', () => {
-      expect(evaluate('user.firstName', testData)).toBe('John');
+      expect(evaluate(testData, 'user.firstName')).toBe('John');
     });
 
     test('nested property', () => {
-      expect(evaluate('user.address.city', testData)).toBe('New York');
+      expect(evaluate(testData, 'user.address.city')).toBe('New York');
     });
 
     test('missing property returns undefined', () => {
-      expect(evaluate('user.middleName', testData)).toBeUndefined();
+      expect(evaluate(testData, 'user.middleName')).toBeUndefined();
     });
 
     test('deeply missing property returns undefined', () => {
-      expect(evaluate('user.foo.bar.baz', testData)).toBeUndefined();
+      expect(evaluate(testData, 'user.foo.bar.baz')).toBeUndefined();
     });
   });
 
   describe('Array Access', () => {
     test('index access', () => {
-      expect(evaluate('orders[0].product', testData)).toBe('Widget');
+      expect(evaluate(testData, 'orders[0].product')).toBe('Widget');
     });
 
     test('last element with negative index', () => {
-      expect(evaluate('tags[2]', testData)).toBe('featured');
+      expect(evaluate(testData, 'tags[2]')).toBe('featured');
     });
 
     test('slice', () => {
-      const result = evaluate('orders[0:2]', testData) as any[];
+      const result = evaluate(testData, 'orders[0:2]') as any[];
       expect(result).toHaveLength(2);
       expect(result[0].product).toBe('Widget');
     });
 
     test('spread access maps property', () => {
-      expect(evaluate('orders[*].product', testData)).toEqual(['Widget', 'Gadget', 'Gizmo']);
+      expect(evaluate(testData, 'orders[*].product')).toEqual(['Widget', 'Gadget', 'Gizmo']);
     });
 
     test('filter', () => {
-      const result = evaluate('orders[? status == "shipped"]', testData) as any[];
+      const result = evaluate(testData, 'orders[? status == "shipped"]') as any[];
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe(1);
       expect(result[1].id).toBe(3);
@@ -68,226 +68,226 @@ describe('Parser', () => {
 
   describe('Arithmetic', () => {
     test('multiplication', () => {
-      expect(evaluate('orders[0].price * orders[0].quantity', testData)).toBeCloseTo(51.98);
+      expect(evaluate(testData, 'orders[0].price * orders[0].quantity')).toBeCloseTo(51.98);
     });
 
     test('operator precedence', () => {
-      expect(evaluate('100 + 50 * 2', testData)).toBe(200);
+      expect(evaluate(testData, '100 + 50 * 2')).toBe(200);
     });
 
     test('parentheses', () => {
-      expect(evaluate('(100 + 50) * 2', testData)).toBe(300);
+      expect(evaluate(testData, '(100 + 50) * 2')).toBe(300);
     });
   });
 
   describe('String Operations', () => {
     test('concatenation with &', () => {
-      expect(evaluate('user.firstName & " " & user.lastName', testData)).toBe('John Doe');
+      expect(evaluate(testData, 'user.firstName & " " & user.lastName')).toBe('John Doe');
     });
 
     test('template literal', () => {
-      expect(evaluate('`Hello ${user.firstName}!`', testData)).toBe('Hello John!');
+      expect(evaluate(testData, '`Hello ${user.firstName}!`')).toBe('Hello John!');
     });
   });
 
   describe('Logical Operations', () => {
     test('comparison', () => {
-      expect(evaluate('user.age >= 18', testData)).toBe(true);
+      expect(evaluate(testData, 'user.age >= 18')).toBe(true);
     });
 
     test('and', () => {
-      expect(evaluate('user.age > 30 && user.age < 40', testData)).toBe(true);
+      expect(evaluate(testData, 'user.age > 30 && user.age < 40')).toBe(true);
     });
 
     test('or', () => {
-      expect(evaluate('user.age < 20 || user.age > 30', testData)).toBe(true);
+      expect(evaluate(testData, 'user.age < 20 || user.age > 30')).toBe(true);
     });
   });
 
   describe('Null Handling', () => {
     test('null coalescing with existing value', () => {
-      expect(evaluate('user.firstName ?? "Anonymous"', testData)).toBe('John');
+      expect(evaluate(testData, 'user.firstName ?? "Anonymous"')).toBe('John');
     });
 
     test('null coalescing with missing value', () => {
-      expect(evaluate('user.nickname ?? "Anonymous"', testData)).toBe('Anonymous');
+      expect(evaluate(testData, 'user.nickname ?? "Anonymous"')).toBe('Anonymous');
     });
   });
 
   describe('Ternary', () => {
     test('true condition', () => {
-      expect(evaluate('user.age >= 18 ? "Adult" : "Minor"', testData)).toBe('Adult');
+      expect(evaluate(testData, 'user.age >= 18 ? "Adult" : "Minor"')).toBe('Adult');
     });
 
     test('false condition', () => {
-      expect(evaluate('user.age >= 50 ? "Senior" : "Not senior"', testData)).toBe('Not senior');
+      expect(evaluate(testData, 'user.age >= 50 ? "Senior" : "Not senior"')).toBe('Not senior');
     });
   });
 
   describe('Pipe Operations', () => {
     test('single pipe', () => {
-      expect(evaluate('user.firstName | upper', testData)).toBe('JOHN');
+      expect(evaluate(testData, 'user.firstName | upper')).toBe('JOHN');
     });
 
     test('chained pipes', () => {
-      expect(evaluate('"  HELLO  " | lower | trim', {})).toBe('hello');
+      expect(evaluate({}, '"  HELLO  " | lower | trim')).toBe('hello');
     });
   });
 
   describe('Pipe Property Access (jq-style)', () => {
     test('.field after pipe', () => {
-      const result = evaluate('{ name: "test" } | .name', {});
+      const result = evaluate({}, '{ name: "test" } | .name');
       expect(result).toBe('test');
     });
 
     test('.[index] after pipe', () => {
-      const result = evaluate('[1, 2, 3] | .[1]', {});
+      const result = evaluate({}, '[1, 2, 3] | .[1]');
       expect(result).toBe(2);
     });
 
     test('[index] after pipe (without dot)', () => {
-      const result = evaluate('[1, 2, 3] | [1]', {});
+      const result = evaluate({}, '[1, 2, 3] | [1]');
       expect(result).toBe(2);
     });
 
     test('chain pipe property access', () => {
-      const result = evaluate('{ items: [{ x: 1 }] } | .items | .[0] | .x', {});
+      const result = evaluate({}, '{ items: [{ x: 1 }] } | .items | .[0] | .x');
       expect(result).toBe(1);
     });
 
     test('method call on pipe context', () => {
-      const result = evaluate('"hello" | .toUpperCase()', {});
+      const result = evaluate({}, '"hello" | .toUpperCase()');
       expect(result).toBe('HELLO');
     });
 
     test('mix function pipes with property access', () => {
-      const result = evaluate('"  hello  " | trim | .toUpperCase()', {});
+      const result = evaluate({}, '"  hello  " | trim | .toUpperCase()');
       expect(result).toBe('HELLO');
     });
 
     test('access nested property with data', () => {
-      const result = evaluate('orders.find(x => x.id === 3) | .status', testData);
+      const result = evaluate(testData, 'orders.find(x => x.id === 3) | .status');
       expect(result).toBe('shipped');
     });
 
     test('access first element then property', () => {
-      const result = evaluate('orders | .[0] | .product', testData);
+      const result = evaluate(testData, 'orders | .[0] | .product');
       expect(result).toBe('Widget');
     });
 
     test('split and access index', () => {
-      const result = evaluate('"hello" | .split("") | .[0]', {});
+      const result = evaluate({}, '"hello" | .split("") | .[0]');
       expect(result).toBe('h');
     });
 
     test('chain multiple method calls', () => {
-      const result = evaluate('"hello world" | .split(" ") | .[0] | .toUpperCase()', {});
+      const result = evaluate({}, '"hello world" | .split(" ") | .[0] | .toUpperCase()');
       expect(result).toBe('HELLO');
     });
 
     test('pipe property access followed by function pipe', () => {
-      const result = evaluate('user | .firstName | upper', testData);
+      const result = evaluate(testData, 'user | .firstName | upper');
       expect(result).toBe('JOHN');
     });
 
     test('nested object access via pipe', () => {
-      const result = evaluate('user | .address | .city', testData);
+      const result = evaluate(testData, 'user | .address | .city');
       expect(result).toBe('New York');
     });
 
     test('function pipe with index access', () => {
-      const result = evaluate('"a,b,c" | split(",")[1]', {});
+      const result = evaluate({}, '"a,b,c" | split(",")[1]');
       expect(result).toBe('b');
     });
 
     test('chained pipe property then function with index', () => {
-      const result = evaluate('orders.find(x => x.id === 1) | .status | split(" ")[0]', testData);
+      const result = evaluate(testData, 'orders.find(x => x.id === 1) | .status | split(" ")[0]');
       expect(result).toBe('shipped');
     });
 
     test('function pipe with slice access', () => {
-      const result = evaluate('[1,2,3,4,5] | take(4)[1:3]', {});
+      const result = evaluate({}, '[1,2,3,4,5] | take(4)[1:3]');
       expect(result).toEqual([2, 3]);
     });
 
     test('pipe to object construction', () => {
-      const result = evaluate('orders[0] | { id: .id, name: .product }', testData);
+      const result = evaluate(testData, 'orders[0] | { id: .id, name: .product }');
       expect(result).toEqual({ id: 1, name: 'Widget' });
     });
 
     test('pipe to object with spread', () => {
-      const result = evaluate('orders[0] | { ..., extra: "new" }', testData) as any;
+      const result = evaluate(testData, 'orders[0] | { ..., extra: "new" }') as any;
       expect(result.id).toBe(1);
       expect(result.product).toBe('Widget');
       expect(result.extra).toBe('new');
     });
 
     test('pipe to object with nested pipe', () => {
-      const result = evaluate('orders[0] | { id: .id, upper: .status | upper }', testData);
+      const result = evaluate(testData, 'orders[0] | { id: .id, upper: .status | upper }');
       expect(result).toEqual({ id: 1, upper: 'SHIPPED' });
     });
 
     test('pipe to object with arithmetic', () => {
-      const result = evaluate('orders[0] | { doubled: .price * 2 }', testData);
+      const result = evaluate(testData, 'orders[0] | { doubled: .price * 2 }');
       expect(result).toEqual({ doubled: 51.98 });
     });
 
     test('pipe to empty object', () => {
-      const result = evaluate('orders[0] | {}', testData);
+      const result = evaluate(testData, 'orders[0] | {}');
       expect(result).toEqual({});
     });
 
     test('pipe to object with shorthand property', () => {
-      const result = evaluate('orders[0] | { id }', testData);
+      const result = evaluate(testData, 'orders[0] | { id }');
       expect(result).toEqual({ id: 1 });
     });
 
     test('pipe to object with shorthand and regular properties', () => {
-      const result = evaluate('orders[0] | { id, name: .product }', testData);
+      const result = evaluate(testData, 'orders[0] | { id, name: .product }');
       expect(result).toEqual({ id: 1, name: 'Widget' });
     });
 
     test('pipe to object with literal value', () => {
-      const result = evaluate('orders[0] | { "status": "custom" }', testData);
+      const result = evaluate(testData, 'orders[0] | { "status": "custom" }');
       expect(result).toEqual({ status: 'custom' });
     });
 
     test('pipe to array with shorthand', () => {
-      const result = evaluate('orders[0] | [id, product]', testData);
+      const result = evaluate(testData, 'orders[0] | [id, product]');
       expect(result).toEqual([1, 'Widget']);
     });
 
     test('pipe to array with dot syntax', () => {
-      const result = evaluate('orders[0] | [.id, .product, .price]', testData);
+      const result = evaluate(testData, 'orders[0] | [.id, .product, .price]');
       expect(result).toEqual([1, 'Widget', 25.99]);
     });
 
     test('pipe to empty array', () => {
-      const result = evaluate('orders[0] | []', testData);
+      const result = evaluate(testData, 'orders[0] | []');
       expect(result).toEqual([]);
     });
 
     test('pipe index access still works', () => {
-      const result = evaluate('orders | [0]', testData);
+      const result = evaluate(testData, 'orders | [0]');
       expect(result).toEqual(testData.orders[0]);
     });
 
     test('pipe index access with chaining', () => {
-      const result = evaluate('orders | [1] | .product', testData);
+      const result = evaluate(testData, 'orders | [1] | .product');
       expect(result).toBe('Gadget');
     });
   });
 
   describe('Object Construction', () => {
     test('simple object', () => {
-      expect(evaluate('{ name: user.firstName, city: user.address.city }', testData)).toEqual({
+      expect(evaluate(testData, '{ name: user.firstName, city: user.address.city }')).toEqual({
         name: 'John',
         city: 'New York',
       });
     });
 
     test('with template literal', () => {
-      expect(evaluate('{ fullName: `${user.firstName} ${user.lastName}` }', testData)).toEqual({
+      expect(evaluate(testData, '{ fullName: `${user.firstName} ${user.lastName}` }')).toEqual({
         fullName: 'John Doe',
       });
     });
@@ -295,25 +295,25 @@ describe('Parser', () => {
 
   describe('Function Calls', () => {
     test('upper', () => {
-      expect(evaluate('upper(user.firstName)', testData)).toBe('JOHN');
+      expect(evaluate(testData, 'upper(user.firstName)')).toBe('JOHN');
     });
 
     test('count', () => {
-      expect(evaluate('count(orders)', testData)).toBe(3);
+      expect(evaluate(testData, 'count(orders)')).toBe(3);
     });
 
     test('sum with spread', () => {
-      expect(evaluate('sum(orders[*].price)', testData)).toBeCloseTo(90.98);
+      expect(evaluate(testData, 'sum(orders[*].price)')).toBeCloseTo(90.98);
     });
 
     test('round', () => {
-      expect(evaluate('round(orders[0].price, 1)', testData)).toBe(26);
+      expect(evaluate(testData, 'round(orders[0].price, 1)')).toBe(26);
     });
   });
 
   describe('Map Transform', () => {
     test('basic map transform', () => {
-      const result = evaluate('orders[*].{ id, total: price * quantity }', testData) as any[];
+      const result = evaluate(testData, 'orders[*].{ id, total: price * quantity }') as any[];
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ id: 1, total: 51.98 });
     });
@@ -326,7 +326,7 @@ describe('Parser', () => {
         let tax = total * 0.1;
         { subtotal: total, tax: tax, total: total + tax }
       `;
-      const result = evaluate(expr, testData) as any;
+      const result = evaluate(testData, expr) as any;
       expect(result.subtotal).toBeCloseTo(51.98);
       expect(result.tax).toBeCloseTo(5.198);
       expect(result.total).toBeCloseTo(57.178);
@@ -346,7 +346,7 @@ describe('Parser', () => {
 
   describe('Code Generation', () => {
     test('generates readable JavaScript', () => {
-      const code = toJavaScript('user.firstName | upper');
+      const code = toJS('user.firstName | upper');
       expect(code).toContain('__helpers.upper');
       expect(code).toContain('input?.user?.firstName');
     });
@@ -355,19 +355,19 @@ describe('Parser', () => {
   describe('Strict Mode - Enhanced Error Messages', () => {
     test('throws descriptive error for missing property', () => {
       expect(() => {
-        evaluate('user.missing', testData, { strict: true });
+        evaluate(testData, 'user.missing', { strict: true });
       }).toThrow(/does not exist/);
     });
 
     test('throws error for null access', () => {
       expect(() => {
-        evaluate('user.nickname.length', testData, { strict: true });
+        evaluate(testData, 'user.nickname.length', { strict: true });
       }).toThrow();
     });
 
     test('suggests similar property names (typo detection)', () => {
       try {
-        evaluate('user.adress', testData, { strict: true });
+        evaluate(testData, 'user.adress', { strict: true });
         expect(true).toBe(false); // Should have thrown
       } catch (err: any) {
         expect(err.message).toContain('adress');
@@ -377,19 +377,19 @@ describe('Parser', () => {
 
     test('throws error for array index out of bounds', () => {
       expect(() => {
-        evaluate('orders[999]', testData, { strict: true });
+        evaluate(testData, 'orders[999]', { strict: true });
       }).toThrow(/out of bounds/);
     });
 
     test('throws error when accessing non-array with spread', () => {
       expect(() => {
-        evaluate('user[*]', testData, { strict: true });
+        evaluate(testData, 'user[*]', { strict: true });
       }).toThrow(/array/);
     });
 
     test('includes path in error for nested access', () => {
       try {
-        evaluate('user.address.missing', testData, { strict: true });
+        evaluate(testData, 'user.address.missing', { strict: true });
         expect(true).toBe(false); // Should have thrown
       } catch (err: any) {
         expect(err.path).toContain('address');
@@ -398,9 +398,9 @@ describe('Parser', () => {
 
     test('forgiving mode still returns undefined', () => {
       // Same expressions should work in forgiving mode
-      expect(evaluate('user.missing', testData)).toBeUndefined();
-      expect(evaluate('user.nickname.length', testData)).toBeUndefined();
-      expect(evaluate('user.adress', testData)).toBeUndefined();
+      expect(evaluate(testData, 'user.missing')).toBeUndefined();
+      expect(evaluate(testData, 'user.nickname.length')).toBeUndefined();
+      expect(evaluate(testData, 'user.adress')).toBeUndefined();
     });
   });
 });

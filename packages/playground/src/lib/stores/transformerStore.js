@@ -199,7 +199,7 @@ export const evaluationResult = derived(
     }
 
     try {
-      const result = transformerModule.evaluate($debouncedExpression, $parsedInput.data, {
+      const result = transformerModule.evaluate($parsedInput.data, $debouncedExpression, {
         strict: $strictMode,
       });
       return { success: true, data: result };
@@ -225,7 +225,7 @@ export const previewEvaluationResult = derived(
       const error = transformerModule.validate($previewExpression);
       if (error) return null;
 
-      const result = transformerModule.evaluate($previewExpression, $parsedInput.data, {
+      const result = transformerModule.evaluate($parsedInput.data, $previewExpression, {
         strict: false,
       });
       return { success: true, data: result, expression: $previewExpression };
@@ -254,7 +254,7 @@ export const generatedJs = derived(
     if (!$transformerLoaded || !transformerModule) return '';
     if (!$validationResult.valid) return '';
     try {
-      return transformerModule.toJavaScript($debouncedExpression, {
+      return transformerModule.toJS($debouncedExpression, {
         strict: $strictMode,
         pretty: true,
         wrapInFunction: true,
@@ -272,7 +272,7 @@ export const nativeJs = derived(
     if (!$transformerLoaded || !transformerModule) return '';
     if (!$validationResult.valid) return '';
     try {
-      return transformerModule.toJavaScript($debouncedExpression, {
+      return transformerModule.toJS($debouncedExpression, {
         strict: $strictMode,
         pretty: true,
         wrapInFunction: true,
