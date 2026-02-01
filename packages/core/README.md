@@ -8,6 +8,21 @@ A lightweight JSON query and transformation language that compiles to JavaScript
 npm install @ahsankhanamu/json-transformer
 ```
 
+## Tree-Shaking & Subpath Imports
+
+For smaller bundles, import only what you need:
+
+```javascript
+// Full API (convenient)
+import { evaluate, compile, toJS } from '@ahsankhanamu/json-transformer';
+
+// Individual modules (tree-shakable)
+import { parse, Parser } from '@ahsankhanamu/json-transformer/parser';
+import { generate, NativeCodeGenerator } from '@ahsankhanamu/json-transformer/codegen';
+import { helpers } from '@ahsankhanamu/json-transformer/runtime';
+import * as AST from '@ahsankhanamu/json-transformer/ast';
+```
+
 ## Quick Examples
 
 ```javascript

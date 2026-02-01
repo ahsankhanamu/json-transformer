@@ -272,20 +272,3 @@ export const builder = {
     expression,
   }),
 };
-
-// =============================================================================
-// DEFAULT EXPORT
-// =============================================================================
-
-export default {
-  compile,
-  evaluate,
-  parse: parseExpression,
-  toJS,
-  validate,
-  clearCache,
-  getCacheStats,
-  jt,
-  builder,
-  helpers,
-};
