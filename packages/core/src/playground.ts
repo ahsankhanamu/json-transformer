@@ -3,7 +3,7 @@
  * Run with: npx tsx src/playground.ts
  */
 
-import { compile, evaluate, toJavaScript, parse, validate } from './index.js';
+import { compile, evaluate, toJS, parse, validate } from './index.js';
 
 // =============================================================================
 // TEST DATA
@@ -126,7 +126,7 @@ for (const expr of expressions) {
     console.log();
 
     // Generate JS
-    const js = toJavaScript(expr, { wrapInFunction: false, pretty: true });
+    const js = toJS(expr, { wrapInFunction: false, pretty: true });
     console.log('Generated JS:');
     console.log('  ' + js.split('\n').join('\n  '));
     console.log();

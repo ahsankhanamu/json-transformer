@@ -122,15 +122,15 @@ orders[? .price > 20][].product | upper
   </Fragment>
 </CodeCompare>
 
-Use `compile()` to get a reusable function, or `toJavaScript()` to get the source code:
+Use `compile()` to get a reusable function, or `toJS()` to get the source code:
 
 ```javascript
-import { compile, toJavaScript } from '@ahsankhanamu/json-transformer';
+import { compile, toJS } from '@ahsankhanamu/json-transformer';
 
 const fn = compile('orders[? .price > 20][].product');
 fn(data); // ["Widget", "Gadget"]
 
-toJavaScript('user.name | upper');
+toJS('user.name | upper');
 // "(input) => input?.user?.name?.toUpperCase()"
 ```
 

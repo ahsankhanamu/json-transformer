@@ -14,15 +14,15 @@ JSON Transformer can generate standalone JavaScript code from expressions. This 
 ## Basic Usage
 
 ```typescript
-import { toJavaScript } from '@ahsankhanamu/json-transformer';
+import { toJS } from '@ahsankhanamu/json-transformer';
 
-toJavaScript('user.name');
+toJS('user.name');
 // "return input?.user?.name;"
 
-toJavaScript('price * qty');
+toJS('price * qty');
 // "return (input?.price * input?.qty);"
 
-toJavaScript('items | sum');
+toJS('items | sum');
 // "return __helpers.sum(input?.items);"
 ```
 
@@ -33,7 +33,7 @@ toJavaScript('items | sum');
 Format the output for readability:
 
 ```typescript
-toJavaScript('a + b', { pretty: true });
+toJS('a + b', { pretty: true });
 // "return (input?.a + input?.b);"
 ```
 
@@ -42,7 +42,7 @@ toJavaScript('a + b', { pretty: true });
 Wrap output in a function declaration:
 
 ```typescript
-toJavaScript('user.name', {
+toJS('user.name', {
   wrapInFunction: true,
   functionName: 'getName'
 });
@@ -54,7 +54,7 @@ toJavaScript('user.name', {
 Generate code that throws on missing properties:
 
 ```typescript
-toJavaScript('user.name', { strict: true });
+toJS('user.name', { strict: true });
 // Generates code with runtime property validation
 ```
 
@@ -63,10 +63,10 @@ toJavaScript('user.name', { strict: true });
 Generate native JavaScript without helper function dependencies:
 
 ```typescript
-toJavaScript('items | sum', { native: false });
+toJS('items | sum', { native: false });
 // "return __helpers.sum(input?.items);"
 
-toJavaScript('items | sum', { native: true });
+toJS('items | sum', { native: true });
 // "return input?.items?.reduce((a, b) => a + b, 0);"
 ```
 
@@ -147,7 +147,7 @@ When `native: false` (default), generated code uses `__helpers`:
 
 ```typescript
 // Build time
-const code = toJavaScript('user.name | upper', {
+const code = toJS('user.name | upper', {
   wrapInFunction: true,
   functionName: 'transform'
 });
@@ -161,7 +161,7 @@ const result = transform({ user: { name: 'john' } });
 
 ```typescript
 // Inspect what code will run
-console.log(toJavaScript('complex.expression.here', { pretty: true }));
+console.log(toJS('complex.expression.here', { pretty: true }));
 ```
 
 ### Code Review
@@ -172,6 +172,6 @@ Generate code for expressions in configuration files for security review:
 const expressions = loadConfigExpressions();
 for (const expr of expressions) {
   console.log(`// ${expr}`);
-  console.log(toJavaScript(expr, { pretty: true }));
+  console.log(toJS(expr, { pretty: true }));
 }
 ```

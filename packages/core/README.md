@@ -36,7 +36,7 @@ evaluate('user.name | upper', data);            // "JOHN"
 ## API
 
 ```typescript
-import { compile, evaluate, validate, toJavaScript, parse } from '@ahsankhanamu/json-transformer';
+import { compile, evaluate, validate, toJS, parse } from '@ahsankhanamu/json-transformer';
 
 // compile(expr, options?) - Returns reusable function (fastest for repeated use)
 const fn = compile('user.name | upper');
@@ -49,8 +49,8 @@ evaluate('price * qty', { price: 10, qty: 5 }); // 50
 validate('user.name'); // null (valid)
 validate('user.');     // ParseError
 
-// toJavaScript(expr, options?) - Generate JS source code
-toJavaScript('a + b'); // 'return (input?.a + input?.b);'
+// toJS(expr, options?) - Generate JS source code
+toJS('a + b'); // 'return (input?.a + input?.b);'
 
 // parse(expr) - Get AST for inspection
 parse('a.b'); // { type: 'Program', expression: { type: 'MemberAccess', ... } }
@@ -137,13 +137,13 @@ let tax = total * 0.1;
 
 **Forgiving Mode** (default) - Returns undefined for missing paths:
 ```javascript
-toJavaScript('user.address.city');
+toJS('user.address.city');
 // → input?.user?.address?.city
 ```
 
 **Strict Mode** - Throws descriptive errors:
 ```javascript
-toJavaScript('user.address.city', { strict: true });
+toJS('user.address.city', { strict: true });
 // Throws: "Property 'city' does not exist at path 'user.address'"
 ```
 

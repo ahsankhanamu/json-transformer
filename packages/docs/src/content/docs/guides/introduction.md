@@ -43,7 +43,7 @@ npm install @ahsankhanamu/json-transformer
 ## Basic Usage
 
 ```javascript
-import { evaluate, compile, toJavaScript } from '@ahsankhanamu/json-transformer';
+import { evaluate, compile, toJS } from '@ahsankhanamu/json-transformer';
 
 // One-shot evaluation
 const result = evaluate('user.name | upper', { user: { name: 'john' } });
@@ -55,6 +55,6 @@ fn({ price: 10, quantity: 5 }); // 50
 fn({ price: 20, quantity: 3 }); // 60
 
 // Generate JavaScript source
-const code = toJavaScript('a + b', { pretty: true });
+const code = toJS('a + b', { pretty: true });
 // "return (input?.a + input?.b);"
 ```

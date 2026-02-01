@@ -161,9 +161,6 @@ export function toJS(expression: string, options: FullCodeGenOptions = {}): stri
   return generate(ast, options);
 }
 
-/** @deprecated Use toJS instead */
-export const toJavaScript = toJS;
-
 /**
  * Validate an expression without executing it
  *
@@ -285,7 +282,6 @@ export default {
   evaluate,
   parse: parseExpression,
   toJS,
-  toJavaScript, // deprecated alias
   validate,
   clearCache,
   getCacheStats,
