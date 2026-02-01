@@ -1,0 +1,16 @@
+---
+// Playground page - imports the SvelteKit playground directly
+import '../styles/playground.css';
+import App from '../../../playground/src/routes/+page.svelte';
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playground | JSON Transformer</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <App client:only="svelte" />
+  </body>
+</html>

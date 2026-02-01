@@ -7,7 +7,10 @@
   ],
   "scripts": {
     "build": "npm run build -w @ahsankhanamu/json-transformer",
+    "build:vercel": "npm run build -w @ahsankhanamu/json-transformer && npm run build -w json-transformer-docs",
     "build:all": "npm run build -w @ahsankhanamu/json-transformer && npm run build -w json-transformer-playground && npm run build -w json-transformer-docs",
+    "build:combined": "npm run build -w @ahsankhanamu/json-transformer && npm run build -w json-transformer-docs && cp -r packages/docs/dist/* packages/playground/static/docs/ && npm run build -w json-transformer-playground",
+    "dev:combined": "npm run build -w json-transformer-docs && cp -r packages/docs/dist/* packages/playground/static/docs/ && npm run dev -w json-transformer-playground",
     "dev": "npm run dev -w json-transformer-playground",
     "dev:docs": "npm run dev -w json-transformer-docs",
     "test": "npm run test -w @ahsankhanamu/json-transformer",
@@ -16,7 +19,7 @@
     "format": "prettier --write \"packages/*/src/**/*.{ts,js,svelte,css,json}\"",
     "format:check": "prettier --check \"packages/*/src/**/*.{ts,js,svelte,css,json}\"",
     "clean": "rm -rf packages/*/dist packages/*/.svelte-kit",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.{ts,js,svelte}": [

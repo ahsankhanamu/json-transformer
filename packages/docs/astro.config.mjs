@@ -1,5 +1,11 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import svelte from '@astrojs/svelte';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   integrations: [
@@ -13,10 +19,20 @@ export default defineConfig({
         {
           tag: 'script',
           content: `document.addEventListener('DOMContentLoaded', () => {
+            // Open GitHub links in new tab
             document.querySelectorAll('.social-icons a, a[href*="github.com"]').forEach(a => {
               a.setAttribute('target', '_blank');
               a.setAttribute('rel', 'noopener');
             });
+            // Add Playground link next to GitHub icon
+            const socialIcons = document.querySelector('.social-icons');
+            if (socialIcons && !document.querySelector('.playground-header-link')) {
+              const link = document.createElement('a');
+              link.href = '/playground';
+              link.className = 'playground-header-link';
+              link.textContent = 'Playground';
+              socialIcons.prepend(link);
+            }
           });`,
         },
       ],
@@ -51,5 +67,15 @@ export default defineConfig({
         },
       ],
     }),
+    svelte(),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        $lib: path.resolve(__dirname, '../playground/src/lib'),
+        '$app/environment': path.resolve(__dirname, './src/shims/app-environment.js'),
+      },
+    },
+  },
 });

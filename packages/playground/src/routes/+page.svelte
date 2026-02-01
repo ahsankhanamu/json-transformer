@@ -112,8 +112,8 @@
       <LayoutSelector />
       <SettingsDropdown />
       <a
-        href="https://github.com/ahsankhanamu/json-transformer"
-        target="_blank"
+        href="/"
+        rel="external"
         class="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] text-xs px-2"
       >
         Docs

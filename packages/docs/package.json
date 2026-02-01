@@ -5,11 +5,24 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:vercel": "cd ../core && npm run build && cd ../docs && astro build",
     "preview": "astro preview"
   },
   "dependencies": {
+    "@ahsankhanamu/json-transformer": "*",
     "@astrojs/starlight": "^0.31.0",
+    "@astrojs/svelte": "^7.2.5",
+    "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.35.0",
+    "@tailwindcss/vite": "^4.1.18",
     "astro": "^5.0.0",
-    "sharp": "^0.33.0"
+    "codemirror": "^6.0.1",
+    "prettier": "^3.8.1",
+    "sharp": "^0.33.0",
+    "svelte": "^5.49.1",
+    "tailwindcss": "^4.1.18"
   }
 }

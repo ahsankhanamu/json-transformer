@@ -1,0 +1,7 @@
+/* Import the playground's complete stylesheet (includes Tailwind) */
+@import '../../../playground/src/app.css';
+
+/* Configure Tailwind to scan playground files */
+@source "../../../playground/src/**/*.svelte";
+@source "../../../playground/src/**/*.js";
+@source "../../../playground/src/**/*.ts";
