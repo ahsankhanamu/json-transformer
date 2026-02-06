@@ -6,6 +6,7 @@ export { default as CodeEditor } from './components/CodeEditor.svelte';
 export { default as FunctionReference } from './components/FunctionReference.svelte';
 export { default as SettingsDropdown } from './components/SettingsDropdown.svelte';
 export { default as LayoutSelector } from './components/LayoutSelector.svelte';
+export { default as Resizer } from './components/Resizer.svelte';
 
 // Stores
 export * from './stores/transformerStore.js';
