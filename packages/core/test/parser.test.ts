@@ -305,6 +305,21 @@ describe('Parser', () => {
       const result = evaluate(testData, 'orders | [1] | .product');
       expect(result).toBe('Gadget');
     });
+
+    test('pipe to helper function with method chaining', () => {
+      const result = evaluate(testData, 'user | keys().map(x => upper(x))');
+      expect(result).toEqual(['FIRSTNAME', 'LASTNAME', 'AGE', 'EMAIL', 'ADDRESS']);
+    });
+
+    test('pipe to helper function with property access', () => {
+      const result = evaluate(testData, 'user | keys().length');
+      expect(result).toBe(5);
+    });
+
+    test('pipe to helper function with filter', () => {
+      const result = evaluate(testData, 'user | keys().filter(k => k.startsWith("e"))');
+      expect(result).toEqual(['email']);
+    });
   });
 
   describe('Object Construction', () => {
