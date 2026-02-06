@@ -57,6 +57,9 @@
     sidepanel: `<rect x="2" y="2" width="10" height="8" rx="1" fill="currentColor" opacity="0.4"/>
                 <rect x="2" y="12" width="10" height="10" rx="1" fill="currentColor" opacity="0.5"/>
                 <rect x="14" y="2" width="10" height="20" rx="1" fill="currentColor" opacity="0.3"/>`,
+    focus: `<rect x="2" y="2" width="10" height="10" rx="1" fill="currentColor" opacity="0.5"/>
+            <rect x="2" y="14" width="10" height="8" rx="1" fill="currentColor" opacity="0.4"/>
+            <rect x="14" y="2" width="10" height="20" rx="1" fill="currentColor" opacity="0.3"/>`,
   };
 
   // Direction icons

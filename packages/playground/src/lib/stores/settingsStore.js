@@ -2,7 +2,7 @@ import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
 /** @typedef {'light' | 'dark' | 'midnight'} ThemeName */
-/** @typedef {'standard' | 'stacked' | 'sidepanel'} LayoutName */
+/** @typedef {'standard' | 'stacked' | 'sidepanel' | 'focus'} LayoutName */
 /** @typedef {'ltr' | 'rtl'} Direction */
 
 /**
@@ -130,6 +130,11 @@ export const layouts = {
     name: 'Side Panel',
     description: 'Input & Expression left, Preview right',
     icon: 'sidepanel',
+  },
+  focus: {
+    name: 'Focus',
+    description: 'Expression & Input left, Preview right',
+    icon: 'focus',
   },
 };
 

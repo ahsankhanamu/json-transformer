@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState } from '@codemirror/state';
+  import { lineNumbers } from '@codemirror/view';
   import { javascript } from '@codemirror/lang-javascript';
   import { json } from '@codemirror/lang-json';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
@@ -53,8 +54,8 @@
     { tag: tags.comment, class: 'cm-syntax-comment' },
   ]);
 
-  // Dark theme
-  const darkTheme = EditorView.theme({
+  // Theme matching CodeEditor
+  const viewerTheme = EditorView.theme({
     '&': {
       height: '100%',
       fontSize: '13px',
@@ -63,19 +64,26 @@
     '.cm-content': {
       caretColor: 'transparent',
       fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-      padding: '0',
+      padding: '4px 0',
     },
     '.cm-line': {
-      padding: '0',
+      padding: '0 8px',
     },
     '.cm-gutters': {
-      display: 'none',
+      backgroundColor: 'var(--color-bg-secondary)',
+      borderRight: '1px solid var(--color-border)',
+      color: 'var(--color-text-muted)',
+    },
+    '.cm-lineNumbers .cm-gutterElement': {
+      padding: '0 8px 0 12px',
+      minWidth: '40px',
+      fontSize: '12px',
     },
     '.cm-cursor': {
       display: 'none',
     },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-      backgroundColor: 'rgba(59, 130, 246, 0.3)',
+      backgroundColor: 'var(--color-selection)',
     },
     '.cm-activeLine': {
       backgroundColor: 'transparent',
@@ -84,7 +92,7 @@
       outline: 'none',
     },
     '.cm-scroller': {
-      overflow: 'visible',
+      overflow: 'auto',
     },
   });
 
@@ -101,7 +109,8 @@
       doc: code,
       extensions: [
         EditorView.editable.of(false),
-        darkTheme,
+        lineNumbers(),
+        viewerTheme,
         syntaxHighlighting(syntaxColors),
         getLanguageExtension(),
         EditorView.lineWrapping,
@@ -141,11 +150,13 @@
 <style>
   .code-viewer {
     width: 100%;
+    height: 100%;
   }
   .code-viewer :global(.cm-editor) {
     background: transparent !important;
+    height: 100%;
   }
   .code-viewer :global(.cm-scroller) {
-    overflow: visible !important;
+    overflow: auto !important;
   }
 </style>

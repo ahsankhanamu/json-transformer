@@ -12,7 +12,7 @@
     selectedCompletion,
   } from '@codemirror/autocomplete';
   import { keymap, WidgetType, Decoration } from '@codemirror/view';
-  import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+  import { syntaxHighlighting, HighlightStyle, foldAll, unfoldAll } from '@codemirror/language';
   import { tags } from '@lezer/highlight';
   import { functions, keywords } from '$lib/language/transformerLanguage.js';
   import {
@@ -90,6 +90,23 @@
   let editorContainer;
   let editorView;
   const languageConf = new Compartment();
+
+  // Expose methods for external control
+  export function expandAllFolds() {
+    if (editorView) {
+      unfoldAll(editorView);
+    }
+  }
+
+  export function collapseAllFolds() {
+    if (editorView) {
+      foldAll(editorView);
+    }
+  }
+
+  export function getEditorView() {
+    return editorView;
+  }
 
   // Timer refs for cleanup
   let pendingGhostUpdate = null;

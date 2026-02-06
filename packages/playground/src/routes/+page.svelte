@@ -66,7 +66,11 @@
     if (!isResizingH || !containerRef) return;
     const rect = containerRef.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percent = (x / rect.width) * 100;
+    let percent = (x / rect.width) * 100;
+    // Invert for RTL mode
+    if ($layoutDirection === 'rtl') {
+      percent = 100 - percent;
+    }
     horizontalSplit = Math.min(Math.max(percent, 20), 80);
   }
 
@@ -238,6 +242,62 @@
                 bind:value={$expression}
                 isValid={$validationResult.valid}
                 bind:strictMode={$strictMode}
+              />
+            </div>
+          </div>
+
+          <div
+            class="w-3 flex-shrink-0 cursor-col-resize flex items-center justify-center group hover:bg-[var(--color-accent)]/10 transition-colors"
+            onmousedown={startHorizontalResize}
+            role="separator"
+            aria-orientation="vertical"
+          >
+            <div
+              class="w-0.5 h-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+            ></div>
+          </div>
+
+          <!-- Right side: Preview -->
+          <div class="flex-1 flex flex-col min-h-0 min-w-0">
+            <OutputPanel
+              bind:activeTab={$activeTab}
+              previewResult={$previewEvaluationResult || $evaluationResult}
+              astResult={$astResult}
+              generatedJs={$generatedJs}
+              nativeJs={$nativeJs}
+              isPreview={!!$previewEvaluationResult}
+            />
+          </div>
+        </div>
+      {:else if $currentLayout === 'focus'}
+        <!-- Focus Layout: Expression on top, Input below, Preview on right -->
+        <div class="flex min-h-0 h-full {$layoutDirection === 'rtl' ? 'flex-row-reverse' : ''}">
+          <!-- Left side: Expression + Input stacked -->
+          <div class="flex flex-col min-h-0" style="width: {horizontalSplit}%">
+            <div class="min-h-0" style="height: {verticalSplit}%">
+              <ExpressionEditor
+                bind:value={$expression}
+                isValid={$validationResult.valid}
+                bind:strictMode={$strictMode}
+              />
+            </div>
+
+            <div
+              class="h-3 flex-shrink-0 cursor-row-resize flex items-center justify-center group hover:bg-[var(--color-accent)]/10 transition-colors"
+              onmousedown={startVerticalResize}
+              role="separator"
+              aria-orientation="horizontal"
+            >
+              <div
+                class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+              ></div>
+            </div>
+
+            <div class="flex-1 min-h-0">
+              <JsonEditor
+                bind:value={$inputJson}
+                isValid={$parsedInput.success}
+                label="Input JSON"
               />
             </div>
           </div>
