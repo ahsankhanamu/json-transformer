@@ -30,9 +30,16 @@
   let horizontalSplit = $state(50);
   let verticalSplit = $state(70);
 
+  // Stacked layout panel sizes (percentages)
+  let stackedSplit1 = $state(35); // Input JSON
+  let stackedSplit2 = $state(45); // Output Panel
+  // Expression takes the rest (flex-1)
+
   // Resize state
   let isResizingH = $state(false);
   let isResizingV = $state(false);
+  let isResizingStacked1 = $state(false);
+  let isResizingStacked2 = $state(false);
   let containerRef = $state(null);
 
   // Initialize on mount
@@ -85,10 +92,52 @@
   function stopResize() {
     isResizingH = false;
     isResizingV = false;
+    isResizingStacked1 = false;
+    isResizingStacked2 = false;
     document.body.classList.remove('resizing', 'resizing-v');
     document.removeEventListener('mousemove', handleHorizontalResize);
     document.removeEventListener('mousemove', handleVerticalResize);
+    document.removeEventListener('mousemove', handleStackedResize1);
+    document.removeEventListener('mousemove', handleStackedResize2);
     document.removeEventListener('mouseup', stopResize);
+  }
+
+  // Stacked layout resize handlers
+  function startStackedResize1(e) {
+    e.preventDefault();
+    isResizingStacked1 = true;
+    document.body.classList.add('resizing', 'resizing-v');
+    document.addEventListener('mousemove', handleStackedResize1);
+    document.addEventListener('mouseup', stopResize);
+  }
+
+  function startStackedResize2(e) {
+    e.preventDefault();
+    isResizingStacked2 = true;
+    document.body.classList.add('resizing', 'resizing-v');
+    document.addEventListener('mousemove', handleStackedResize2);
+    document.addEventListener('mouseup', stopResize);
+  }
+
+  function handleStackedResize1(e) {
+    if (!isResizingStacked1 || !containerRef) return;
+    const rect = containerRef.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const percent = (y / rect.height) * 100;
+    // Ensure minimum sizes and don't exceed into the expression area
+    const maxSplit1 = 100 - stackedSplit2 - 15; // Leave room for expression
+    stackedSplit1 = Math.min(Math.max(percent, 15), maxSplit1);
+  }
+
+  function handleStackedResize2(e) {
+    if (!isResizingStacked2 || !containerRef) return;
+    const rect = containerRef.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const percent = (y / rect.height) * 100;
+    // This handle controls where Output ends, so split2 = percent - split1
+    const newSplit2 = percent - stackedSplit1;
+    // Ensure minimum sizes
+    stackedSplit2 = Math.min(Math.max(newSplit2, 15), 100 - stackedSplit1 - 15);
   }
 </script>
 
@@ -188,13 +237,24 @@
           />
         </div>
       {:else if $currentLayout === 'stacked'}
-        <!-- Stacked Layout: All vertical -->
-        <div class="flex flex-col min-h-0 gap-3 h-full">
-          <div class="flex-1 min-h-0">
+        <!-- Stacked Layout: All vertical with resize handles -->
+        <div class="flex flex-col min-h-0 h-full">
+          <div class="min-h-0" style="height: {stackedSplit1}%">
             <JsonEditor bind:value={$inputJson} isValid={$parsedInput.success} label="Input JSON" />
           </div>
 
-          <div class="flex-1 min-h-0">
+          <div
+            class="h-3 flex-shrink-0 cursor-row-resize flex items-center justify-center group hover:bg-[var(--color-accent)]/10 transition-colors"
+            onmousedown={startStackedResize1}
+            role="separator"
+            aria-orientation="horizontal"
+          >
+            <div
+              class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+            ></div>
+          </div>
+
+          <div class="min-h-0" style="height: {stackedSplit2}%">
             <OutputPanel
               bind:activeTab={$activeTab}
               previewResult={$previewEvaluationResult || $evaluationResult}
@@ -205,7 +265,18 @@
             />
           </div>
 
-          <div class="h-32 flex-shrink-0">
+          <div
+            class="h-3 flex-shrink-0 cursor-row-resize flex items-center justify-center group hover:bg-[var(--color-accent)]/10 transition-colors"
+            onmousedown={startStackedResize2}
+            role="separator"
+            aria-orientation="horizontal"
+          >
+            <div
+              class="h-0.5 w-12 bg-[var(--color-border)] rounded group-hover:bg-[var(--color-accent)] transition-colors"
+            ></div>
+          </div>
+
+          <div class="flex-1 min-h-0">
             <ExpressionEditor
               bind:value={$expression}
               isValid={$validationResult.valid}
