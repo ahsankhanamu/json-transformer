@@ -30,6 +30,14 @@
     "./lexer": {
       "types": "./dist/lexer.d.ts",
       "import": "./dist/lexer.js"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.js"
+    },
+    "./transformer": {
+      "types": "./dist/transformer.d.ts",
+      "import": "./dist/transformer.js"
     }
   },
   "files": [

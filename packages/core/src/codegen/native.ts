@@ -5,9 +5,43 @@
 import * as AST from '../ast.js';
 import { BaseCodeGenerator, CodeGenOptions } from './base.js';
 
+/** Set of unknown helper names encountered during code generation */
+export type UnknownHelperWarning = {
+  name: string;
+  type: 'helper' | 'library';
+};
+
 export class NativeCodeGenerator extends BaseCodeGenerator {
+  /** Track unknown helpers for warnings */
+  private unknownHelpers: UnknownHelperWarning[] = [];
+
   constructor(options: CodeGenOptions = {}) {
     super(options);
+  }
+
+  /**
+   * Get warnings about unknown helpers encountered during code generation.
+   * In native mode, these helpers must be in scope at runtime.
+   */
+  getWarnings(): UnknownHelperWarning[] {
+    return [...this.unknownHelpers];
+  }
+
+  /**
+   * Clear the warnings list
+   */
+  clearWarnings(): void {
+    this.unknownHelpers = [];
+  }
+
+  /**
+   * Record a warning for an unknown helper
+   */
+  private warnUnknownHelper(name: string, type: 'helper' | 'library'): void {
+    // Avoid duplicates
+    if (!this.unknownHelpers.some((w) => w.name === name && w.type === type)) {
+      this.unknownHelpers.push({ name, type });
+    }
   }
 
   // ============================================================================
@@ -235,12 +269,13 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
   protected generateCallExpression(node: AST.CallExpression): string {
     const args = node.arguments.map((a) => this.generateExpression(a));
 
-    // Built-in helper function
+    // Built-in helper function or custom helper
     if (node.callee.type === 'Identifier') {
       const funcName = node.callee.name;
       const nativeCode = this.generateNativeHelperCall(funcName, args);
       if (nativeCode) return nativeCode;
-      // Fallback - shouldn't happen in native mode
+      // Custom helper - warn that it must be in scope at runtime
+      this.warnUnknownHelper(funcName, 'helper');
       return `${funcName}(${args.join(', ')})`;
     }
 
@@ -283,7 +318,9 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
       const funcName = node.name;
       const nativeCode = this.generateNativeHelperCall(funcName, [pipeValue]);
       if (nativeCode) return nativeCode;
-      return null;
+      // Custom helper - warn and generate as function call (must be in scope)
+      this.warnUnknownHelper(funcName, 'helper');
+      return `${funcName}(${pipeValue})`;
     }
 
     // Direct call: value | funcName(args)
@@ -329,6 +366,24 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
         const start = node.sliceStart ? this.generateExpression(node.sliceStart) : '0';
         const end = node.sliceEnd ? this.generateExpression(node.sliceEnd) : '';
         return `(${innerResult}).slice(${start}${end ? ', ' + end : ''})`;
+      }
+    }
+
+    // Method call on a pipeable expression: value | keys().map(x => x)
+    if (node.type === 'CallExpression' && node.callee.type === 'MemberAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.callee.object, pipeValue);
+      if (innerResult) {
+        const method = node.callee.property;
+        const args = node.arguments.map((a) => this.generateExpression(a));
+        return `${innerResult}?.${method}(${args.join(', ')})`;
+      }
+    }
+
+    // Property access on a pipeable expression: value | keys().length
+    if (node.type === 'MemberAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
+      if (innerResult) {
+        return `${innerResult}?.${node.property}`;
       }
     }
 

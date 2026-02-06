@@ -332,7 +332,7 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
   protected generateCallExpression(node: AST.CallExpression): string {
     const args = node.arguments.map((a) => this.generateExpression(a));
 
-    // Built-in helper function
+    // Built-in or custom helper function: func(args) => __helpers.func(args)
     if (node.callee.type === 'Identifier') {
       const funcName = node.callee.name;
       return `__helpers.${funcName}(${args.join(', ')})`;
@@ -428,6 +428,26 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
         const start = node.sliceStart ? this.generateExpression(node.sliceStart) : '0';
         const end = node.sliceEnd ? this.generateExpression(node.sliceEnd) : '';
         return `(${innerResult}).slice(${start}${end ? ', ' + end : ''})`;
+      }
+    }
+
+    // Method call on a pipeable expression: value | keys().map(x => x)
+    if (node.type === 'CallExpression' && node.callee.type === 'MemberAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.callee.object, pipeValue);
+      if (innerResult) {
+        const method = node.callee.property;
+        const args = node.arguments.map((a) => this.generateExpression(a));
+        const op = node.callee.optional || !this.strict ? '?.' : '.';
+        return `${innerResult}${op}${method}(${args.join(', ')})`;
+      }
+    }
+
+    // Property access on a pipeable expression: value | keys().length
+    if (node.type === 'MemberAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
+      if (innerResult) {
+        const op = node.optional || !this.strict ? '?.' : '.';
+        return `${innerResult}${op}${node.property}`;
       }
     }
 

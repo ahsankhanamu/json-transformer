@@ -12,6 +12,7 @@ export default defineConfig({
     starlight({
       title: 'JSON Transformer',
       description: 'JSON Query and Transformation Language that compiles to JavaScript',
+      favicon: '/favicon.svg',
       social: {
         github: 'https://github.com/ahsankhanamu/json-transformer',
       },
@@ -24,14 +25,21 @@ export default defineConfig({
               a.setAttribute('target', '_blank');
               a.setAttribute('rel', 'noopener');
             });
-            // Add Playground link next to GitHub icon
+            // Add navigation links next to GitHub icon
             const socialIcons = document.querySelector('.social-icons');
-            if (socialIcons && !document.querySelector('.playground-header-link')) {
-              const link = document.createElement('a');
-              link.href = '/playground';
-              link.className = 'playground-header-link';
-              link.textContent = 'Playground';
-              socialIcons.prepend(link);
+            if (socialIcons && !document.querySelector('.header-nav-link')) {
+              const links = [
+                { href: '/playground', text: 'Playground' },
+                { href: '/roadmap', text: 'Roadmap' },
+                { href: '/changelog', text: 'Changelog' },
+              ];
+              links.forEach(({ href, text }) => {
+                const link = document.createElement('a');
+                link.href = href;
+                link.className = 'header-nav-link';
+                link.textContent = text;
+                socialIcons.prepend(link);
+              });
             }
           });`,
         },

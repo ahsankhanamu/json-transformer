@@ -12,7 +12,7 @@ import { LibraryCodeGenerator, LibraryCodeGenOptions } from './library.js';
 
 // Re-export types and classes
 export { CodeGenOptions } from './base.js';
-export { NativeCodeGenerator } from './native.js';
+export { NativeCodeGenerator, UnknownHelperWarning } from './native.js';
 export { LibraryCodeGenerator, LibraryCodeGenOptions } from './library.js';
 
 // Combined options for backward compatibility

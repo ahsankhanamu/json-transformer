@@ -6,7 +6,7 @@
  *
  * @example
  * ```ts
- * import { compile, evaluate, toJS } from '@anthropic/json-transformer';
+ * import { compile, evaluate, toJS } from '@ahsankhanamu/json-transformer';
  *
  * // Compile an expression
  * const fn = compile('user.name | upper');
@@ -19,12 +19,23 @@
  *
  * // Generate JavaScript code
  * const code = toJS('user.name | upper');
+ *
+ * // Custom helpers (3-tier extensibility)
+ * registerFunction('double', (x) => x * 2);
+ * evaluate({ value: 5 }, 'value | double'); // => 10
+ *
+ * // Configured instance
+ * const transformer = createTransformer({
+ *   helpers: { triple: x => x * 3 },
+ * });
+ * transformer.evaluate({ value: 5 }, 'value | triple'); // => 15
  * ```
  */
 
 import { parse } from './parser.js';
 import { generate, FullCodeGenOptions } from './codegen.js';
-import { helpers } from './runtime.js';
+import { helpers as builtInHelpers } from './runtime.js';
+import { buildHelpersObject, CustomHelperFunction } from './registry.js';
 import * as AST from './ast.js';
 
 // Re-export types
@@ -36,6 +47,32 @@ export { CodeGenerator, generate } from './codegen.js';
 export type { CodeGenOptions, FullCodeGenOptions } from './codegen.js';
 export { helpers, TransformError } from './runtime.js';
 export * as AST from './ast.js';
+
+// Re-export registry functions
+export {
+  registerFunction,
+  unregisterFunction,
+  getCustomHelpers,
+  hasCustomHelper,
+  registerLibrary,
+  unregisterLibrary,
+  getLibraries,
+  hasLibrary,
+  getLibrary,
+  clearRegistry,
+  getLibraryNamespaces,
+  getCustomHelperNames,
+} from './registry.js';
+export type { CustomHelperFunction, LibraryObject } from './registry.js';
+
+// Re-export transformer factory
+export { createTransformer } from './transformer.js';
+export type {
+  Transformer,
+  TransformerConfig,
+  TransformerCompileOptions,
+  TransformerEvaluateOptions,
+} from './transformer.js';
 
 // =============================================================================
 // MAIN API
@@ -51,6 +88,8 @@ export interface EvaluateOptions {
   strict?: boolean;
   /** External bindings/context */
   bindings?: Record<string, unknown>;
+  /** Per-evaluation custom helpers (highest priority) */
+  helpers?: Record<string, CustomHelperFunction>;
 }
 
 /** Compiled transform function */
@@ -58,6 +97,15 @@ export type TransformFunction = (input: unknown, bindings?: Record<string, unkno
 
 // Simple expression cache
 const expressionCache = new Map<string, TransformFunction>();
+
+/**
+ * Build merged helpers with global registry
+ *
+ * @returns Helpers object with built-in + global registry helpers/libraries
+ */
+function getMergedHelpers(): Record<string, unknown> {
+  return buildHelpersObject(builtInHelpers);
+}
 
 /**
  * Compile an expression to a reusable function
@@ -91,12 +139,15 @@ export function compile(expression: string, options: CompileOptions = {}): Trans
   const fn = new Function('input', 'bindings', '__helpers', `"use strict";\n${code}`) as (
     input: unknown,
     bindings: Record<string, unknown>,
-    h: Record<string, Function>
+    h: Record<string, unknown>
   ) => unknown;
+
+  // Get merged helpers (built-in + global registry)
+  const mergedHelpers = getMergedHelpers();
 
   // Wrap with helpers
   const transform: TransformFunction = (input, bindings = {}) => {
-    return fn(input, bindings, helpers);
+    return fn(input, bindings, mergedHelpers);
   };
 
   // Cache it
@@ -110,6 +161,9 @@ export function compile(expression: string, options: CompileOptions = {}): Trans
 /**
  * Evaluate an expression directly (data first)
  *
+ * Supports per-evaluation helpers via options.helpers which take
+ * highest priority over global registry and built-in helpers.
+ *
  * @example
  * ```ts
  * const result = evaluate(
@@ -117,6 +171,14 @@ export function compile(expression: string, options: CompileOptions = {}): Trans
  *   'firstName & " " & lastName'
  * );
  * // result: 'John Doe'
+ *
+ * // With per-evaluation helper
+ * const result = evaluate(
+ *   { value: 5 },
+ *   'value | double',
+ *   { helpers: { double: x => x * 2 } }
+ * );
+ * // result: 10
  * ```
  */
 export function evaluate(
@@ -124,8 +186,37 @@ export function evaluate(
   expression: string,
   options: EvaluateOptions = {}
 ): unknown {
-  const fn = compile(expression, { strict: options.strict, cache: true });
-  return fn(input, options.bindings);
+  const { bindings = {}, helpers: evalHelpers, strict } = options;
+
+  // If per-evaluation helpers are provided, we need a fresh execution
+  // (can't use cached version as helpers are different)
+  if (evalHelpers && Object.keys(evalHelpers).length > 0) {
+    const ast = parse(expression);
+    const code = generate(ast, {
+      strict: strict ?? false,
+      wrapInFunction: false,
+      inputVar: 'input',
+      bindingsVar: 'bindings',
+    });
+
+    const fn = new Function('input', 'bindings', '__helpers', `"use strict";\n${code}`) as (
+      input: unknown,
+      bindings: Record<string, unknown>,
+      h: Record<string, unknown>
+    ) => unknown;
+
+    // Build helpers with per-evaluation overrides (highest priority)
+    const mergedHelpers = getMergedHelpers();
+    for (const [name, helperFn] of Object.entries(evalHelpers)) {
+      mergedHelpers[name] = helperFn;
+    }
+
+    return fn(input, bindings, mergedHelpers);
+  }
+
+  // Use cached compile path
+  const fn = compile(expression, { strict, cache: true });
+  return fn(input, bindings);
 }
 
 /**
