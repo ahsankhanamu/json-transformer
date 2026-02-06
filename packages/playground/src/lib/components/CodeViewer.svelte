@@ -5,13 +5,65 @@
   import { lineNumbers } from '@codemirror/view';
   import { javascript } from '@codemirror/lang-javascript';
   import { json } from '@codemirror/lang-json';
-  import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+  import {
+    syntaxHighlighting,
+    HighlightStyle,
+    foldGutter,
+    unfoldAll,
+    codeFolding,
+    foldable,
+    foldEffect,
+  } from '@codemirror/language';
+  import { syntaxTree } from '@codemirror/language';
   import { tags } from '@lezer/highlight';
 
   const { code = '', lang = 'javascript' } = $props();
 
   let editorContainer;
   let editorView;
+
+  // Expose methods for external control
+  export function expandAllFolds() {
+    if (editorView) {
+      unfoldAll(editorView);
+    }
+  }
+
+  export function collapseAllFolds() {
+    if (!editorView) return;
+
+    // First unfold everything to reset state
+    unfoldAll(editorView);
+
+    // Collect all foldable ranges with their depth
+    const ranges = [];
+    const state = editorView.state;
+
+    syntaxTree(state).iterate({
+      enter: (node) => {
+        const range = foldable(state, node.from, node.to);
+        if (range) {
+          // Calculate depth by counting how many ancestors contain this range
+          let depth = 0;
+          for (const r of ranges) {
+            if (r.from <= range.from && r.to >= range.to) {
+              depth++;
+            }
+          }
+          ranges.push({ ...range, depth });
+        }
+      },
+    });
+
+    // Sort by depth descending (innermost first)
+    ranges.sort((a, b) => b.depth - a.depth);
+
+    // Fold from innermost to outermost
+    const effects = ranges.map((range) => foldEffect.of({ from: range.from, to: range.to }));
+    if (effects.length > 0) {
+      editorView.dispatch({ effects });
+    }
+  }
 
   // Syntax highlighting using CSS variables for theme support
   // Colors are defined in app.css and change with theme
@@ -79,6 +131,18 @@
       minWidth: '40px',
       fontSize: '12px',
     },
+    '.cm-foldGutter': {
+      width: '14px',
+    },
+    '.cm-foldGutter .cm-gutterElement': {
+      padding: '0 2px',
+      cursor: 'pointer',
+      color: 'var(--color-text-muted)',
+      transition: 'color 0.15s',
+    },
+    '.cm-foldGutter .cm-gutterElement:hover': {
+      color: 'var(--color-text)',
+    },
     '.cm-cursor': {
       display: 'none',
     },
@@ -110,6 +174,11 @@
       extensions: [
         EditorView.editable.of(false),
         lineNumbers(),
+        codeFolding(),
+        foldGutter({
+          openText: '▾',
+          closedText: '▸',
+        }),
         viewerTheme,
         syntaxHighlighting(syntaxColors),
         getLanguageExtension(),
