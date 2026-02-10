@@ -376,16 +376,36 @@ export abstract class BaseCodeGenerator {
   // ============================================================================
 
   protected generateArrowFunction(node: AST.ArrowFunction): string {
-    const params = node.params.map((p) => p.name).join(', ');
+    const params = node.params
+      .map((p) => {
+        if (p.destructure) {
+          return this.generateObjectLiteral(p.destructure);
+        }
+        return p.name;
+      })
+      .join(', ');
     const savedLocals = new Set(this.localVariables);
 
     for (const param of node.params) {
-      this.localVariables.add(param.name);
+      if (param.destructure) {
+        for (const prop of param.destructure.properties) {
+          if (prop.type === 'ShorthandProperty') {
+            this.localVariables.add(prop.key);
+          } else if (prop.type === 'StandardProperty' && prop.value.type === 'Identifier') {
+            this.localVariables.add(prop.value.name);
+          }
+        }
+      } else {
+        this.localVariables.add(param.name);
+      }
     }
 
     const body = this.generateExpression(node.body);
     this.localVariables = savedLocals;
 
+    if (node.body.type === 'ObjectLiteral') {
+      return `(${params}) => (${body})`;
+    }
     return `(${params}) => ${body}`;
   }
 

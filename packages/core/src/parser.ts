@@ -802,7 +802,7 @@ export class Parser {
       if (this.match(TokenType.ARROW)) {
         // Push param to stack so .property inside body resolves to param.property
         this.arrowParamStack.push(name);
-        const body = this.parseExpression();
+        const body = this.parseArrowBody();
         this.arrowParamStack.pop();
         return {
           type: 'ArrowFunction',
@@ -1019,7 +1019,7 @@ export class Parser {
     if (this.match(TokenType.RPAREN)) {
       this.consume(TokenType.ARROW, 'Expected "=>" after "()"');
       // No params, so no implicit property access available
-      const body = this.parseExpression();
+      const body = this.parseArrowBody();
       return { type: 'ArrowFunction', params: [], body };
     }
 
@@ -1039,7 +1039,7 @@ export class Parser {
       this.consume(TokenType.ARROW, 'Expected "=>" after parameters');
       // Push first param to stack so .property inside body resolves to param.property
       this.arrowParamStack.push(params[0].name);
-      const body = this.parseExpression();
+      const body = this.parseArrowBody();
       this.arrowParamStack.pop();
       return { type: 'ArrowFunction', params, body };
     }
@@ -1051,7 +1051,7 @@ export class Parser {
       const params = [this.exprToParam(first)];
       // Push param to stack so .property inside body resolves to param.property
       this.arrowParamStack.push(params[0].name);
-      const body = this.parseExpression();
+      const body = this.parseArrowBody();
       this.arrowParamStack.pop();
       return { type: 'ArrowFunction', params, body };
     }
@@ -1060,9 +1060,27 @@ export class Parser {
     return first;
   }
 
+  private parseArrowBody(): AST.Expression {
+    // Support block body: => { return expr }
+    if (this.check(TokenType.LBRACE)) {
+      const afterBrace = this.peekNext();
+      if (afterBrace.type === TokenType.IDENTIFIER && afterBrace.value === 'return') {
+        this.advance(); // consume {
+        this.advance(); // consume 'return'
+        const expr = this.parseExpression();
+        this.consume(TokenType.RBRACE, 'Expected "}" after block body');
+        return expr;
+      }
+    }
+    return this.parseExpression();
+  }
+
   private exprToParam(expr: AST.Expression): AST.Parameter {
     if (expr.type === 'Identifier') {
       return { type: 'Parameter', name: expr.name };
+    }
+    if (expr.type === 'ObjectLiteral') {
+      return { type: 'Parameter', name: '', destructure: expr };
     }
     throw new ParseError('Expected parameter name', this.peek());
   }

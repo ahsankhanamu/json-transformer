@@ -220,6 +220,7 @@ export interface ArrowFunction extends BaseNode {
 export interface Parameter extends BaseNode {
   type: 'Parameter';
   name: string;
+  destructure?: ObjectLiteral;
   typeAnnotation?: TypeAnnotation;
   defaultValue?: Expression;
 }
