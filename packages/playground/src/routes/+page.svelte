@@ -8,6 +8,7 @@
     SettingsDropdown,
     LayoutSelector,
     Resizer,
+    FileBar,
     inputJson,
     expression,
     strictMode,
@@ -20,6 +21,8 @@
     generatedJs,
     nativeJs,
     initTransformer,
+    initFiles,
+    filesLoaded,
     currentTheme,
     currentLayout,
     layoutDirection,
@@ -39,9 +42,10 @@
   let containerRef = $state(null);
 
   // Initialize on mount
-  onMount(() => {
+  onMount(async () => {
     initTransformer();
     currentTheme.init();
+    await initFiles();
   });
 
   function handleInsertFunction(fn) {
@@ -120,6 +124,11 @@
       </a>
     </div>
   </header>
+
+  <!-- File tabs -->
+  {#if $filesLoaded}
+    <FileBar />
+  {/if}
 
   <!-- Main content -->
   <div class="flex-1 flex min-h-0">

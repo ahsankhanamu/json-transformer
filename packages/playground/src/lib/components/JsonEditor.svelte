@@ -1,7 +1,9 @@
 <script>
   import CodeEditor from './CodeEditor.svelte';
+  import { loadSample } from '../stores/fileStore.js';
 
   let { value = $bindable(''), isValid = true, label = 'JSON' } = $props();
+  const isEmpty = $derived(!value.trim());
 
   let editorRef = $state(null);
   let isCollapsed = $state(false);
@@ -12,7 +14,10 @@
   <div class="panel-header flex items-center justify-between">
     <span>{label}</span>
     <div class="flex items-center gap-1">
-      {#if !isValid}
+      {#if isEmpty}
+        <button class="load-sample" onclick={loadSample}>Load sample</button>
+        <div class="w-px h-4 bg-[var(--color-border)] mx-1"></div>
+      {:else if !isValid}
         <span class="text-[var(--color-error)] text-xs normal-case mr-2">Invalid JSON</span>
       {/if}
       <!-- Expand/Collapse toggle group -->
@@ -107,6 +112,23 @@
 </div>
 
 <style>
+  .load-sample {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+
+  .load-sample:hover {
+    background: var(--color-bg-tertiary);
+  }
+
   .toggle-group {
     display: flex;
     padding: 3px;

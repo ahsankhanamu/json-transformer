@@ -166,6 +166,7 @@ export function getTokenizer() {
 
 // Derived stores
 export const parsedInput = derived(inputJson, ($inputJson) => {
+  if (!$inputJson.trim()) return { success: true, data: undefined };
   try {
     return { success: true, data: JSON.parse($inputJson) };
   } catch (e) {
@@ -186,6 +187,7 @@ export const validationResult = derived(
     if (!$transformerLoaded || !transformerModule) {
       return { valid: false, error: 'Loading...' };
     }
+    if (!$debouncedExpression.trim()) return { valid: true };
     try {
       const error = transformerModule.validate($debouncedExpression);
       return error ? { valid: false, error: error.message } : { valid: true };
@@ -200,6 +202,9 @@ export const evaluationResult = derived(
   ([$debouncedExpression, $parsedInput, $validationResult, $strictMode, $transformerLoaded]) => {
     if (!$transformerLoaded || !transformerModule) {
       return { success: false, error: 'Loading...' };
+    }
+    if (!$debouncedExpression.trim() || $parsedInput.data === undefined) {
+      return { success: true, data: undefined };
     }
     if (!$parsedInput.success) {
       return { success: false, error: 'Invalid JSON input' };
