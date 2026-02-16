@@ -259,83 +259,8 @@ export class Parser {
     return { type: 'ArrayLiteral', elements };
   }
 
-  // Parse jq-style pipe property access: .field, .[0], .field.subfield, .method()
-  private parsePipePropertyAccess(): AST.Expression {
-    // Start with PipeContextRef as the base
-    let expr: AST.Expression = { type: 'PipeContextRef' };
-
-    // Must start with DOT
-    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
-      if (this.match(TokenType.DOT)) {
-        // Check for .[index] syntax
-        if (this.check(TokenType.LBRACKET)) {
-          this.advance(); // consume [
-          const index = this.parseExpression();
-          this.consume(TokenType.RBRACKET, 'Expected "]"');
-          expr = {
-            type: 'IndexAccess',
-            object: expr,
-            index,
-            optional: false,
-          };
-        } else {
-          // .field or .method()
-          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
-          expr = {
-            type: 'MemberAccess',
-            object: expr,
-            property: name.value as string,
-            optional: false,
-          };
-        }
-      } else if (this.match(TokenType.LBRACKET)) {
-        // [0] or ["key"] without dot prefix
-        const index = this.parseExpression();
-        this.consume(TokenType.RBRACKET, 'Expected "]"');
-        expr = {
-          type: 'IndexAccess',
-          object: expr,
-          index,
-          optional: false,
-        };
-      }
-
-      // Handle method calls: .method()
-      if (this.check(TokenType.LPAREN)) {
-        this.advance();
-        const args: AST.Expression[] = [];
-        if (!this.check(TokenType.RPAREN)) {
-          do {
-            args.push(this.parseExpression());
-          } while (this.match(TokenType.COMMA));
-        }
-        this.consume(TokenType.RPAREN, 'Expected ")"');
-        expr = {
-          type: 'CallExpression',
-          callee: expr,
-          arguments: args,
-        };
-      }
-    }
-
-    return expr;
-  }
-
-  // Parse pipe index access: | [0] (without dot)
-  private parsePipeIndexAccess(): AST.Expression {
-    let expr: AST.Expression = { type: 'PipeContextRef' };
-
-    this.advance(); // consume [
-    const index = this.parseExpression();
-    this.consume(TokenType.RBRACKET, 'Expected "]"');
-    expr = {
-      type: 'IndexAccess',
-      object: expr,
-      index,
-      optional: false,
-    };
-
-    // Allow chaining after: | [0].field or | [0][1]
+  // Shared dot/bracket/call chaining loop used by pipe, context, and arrow access
+  private parseAccessChain(expr: AST.Expression): AST.Expression {
     while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
       if (this.match(TokenType.DOT)) {
         if (this.check(TokenType.LBRACKET)) {
@@ -358,7 +283,6 @@ export class Parser {
         expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
       }
 
-      // Handle method calls
       if (this.check(TokenType.LPAREN)) {
         this.advance();
         const args: AST.Expression[] = [];
@@ -375,19 +299,36 @@ export class Parser {
     return expr;
   }
 
+  // Parse jq-style pipe property access: .field, .[0], .field.subfield, .method()
+  private parsePipePropertyAccess(): AST.Expression {
+    return this.parseAccessChain({ type: 'PipeContextRef' });
+  }
+
+  // Parse pipe index access: | [0] (without dot)
+  private parsePipeIndexAccess(): AST.Expression {
+    this.advance(); // consume [
+    const index = this.parseExpression();
+    this.consume(TokenType.RBRACKET, 'Expected "]"');
+    const base: AST.Expression = {
+      type: 'IndexAccess',
+      object: { type: 'PipeContextRef' },
+      index,
+      optional: false,
+    };
+    return this.parseAccessChain(base);
+  }
+
   // Parse .field access inside pipe object context (DOT already consumed)
   // Returns PipeContextRef-based expression: .field, .[0], .field.nested
   private parsePipeContextAccess(): AST.Expression {
     let expr: AST.Expression = { type: 'PipeContextRef' };
 
-    // Check for .[index] syntax
     if (this.check(TokenType.LBRACKET)) {
-      this.advance(); // consume [
+      this.advance();
       const index = this.parseExpression();
       this.consume(TokenType.RBRACKET, 'Expected "]"');
       expr = { type: 'IndexAccess', object: expr, index, optional: false };
     } else if (this.check(TokenType.IDENTIFIER)) {
-      // .field
       const name = this.advance();
       expr = {
         type: 'MemberAccess',
@@ -396,48 +337,10 @@ export class Parser {
         optional: false,
       };
     } else {
-      // Just . by itself - return the pipe context
       return expr;
     }
 
-    // Allow chaining: .field.nested, .field[0], .field.method()
-    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
-      if (this.match(TokenType.DOT)) {
-        if (this.check(TokenType.LBRACKET)) {
-          this.advance();
-          const idx = this.parseExpression();
-          this.consume(TokenType.RBRACKET, 'Expected "]"');
-          expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
-        } else {
-          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
-          expr = {
-            type: 'MemberAccess',
-            object: expr,
-            property: name.value as string,
-            optional: false,
-          };
-        }
-      } else if (this.match(TokenType.LBRACKET)) {
-        const idx = this.parseExpression();
-        this.consume(TokenType.RBRACKET, 'Expected "]"');
-        expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
-      }
-
-      // Handle method calls: .method()
-      if (this.check(TokenType.LPAREN)) {
-        this.advance();
-        const args: AST.Expression[] = [];
-        if (!this.check(TokenType.RPAREN)) {
-          do {
-            args.push(this.parseExpression());
-          } while (this.match(TokenType.COMMA));
-        }
-        this.consume(TokenType.RPAREN, 'Expected ")"');
-        expr = { type: 'CallExpression', callee: expr, arguments: args };
-      }
-    }
-
-    return expr;
+    return this.parseAccessChain(expr);
   }
 
   // Parse .field access inside arrow function body (DOT already consumed)
@@ -446,14 +349,12 @@ export class Parser {
     const paramName = this.arrowParamStack[this.arrowParamStack.length - 1];
     let expr: AST.Expression = { type: 'Identifier', name: paramName };
 
-    // Check for .[index] syntax
     if (this.check(TokenType.LBRACKET)) {
-      this.advance(); // consume [
+      this.advance();
       const index = this.parseExpression();
       this.consume(TokenType.RBRACKET, 'Expected "]"');
       expr = { type: 'IndexAccess', object: expr, index, optional: false };
     } else if (this.check(TokenType.IDENTIFIER)) {
-      // .field
       const name = this.advance();
       expr = {
         type: 'MemberAccess',
@@ -462,48 +363,10 @@ export class Parser {
         optional: false,
       };
     } else {
-      // Just . by itself - return the parameter identifier
       return expr;
     }
 
-    // Allow chaining: .field.nested, .field[0], .field.method()
-    while (this.check(TokenType.DOT) || this.check(TokenType.LBRACKET)) {
-      if (this.match(TokenType.DOT)) {
-        if (this.check(TokenType.LBRACKET)) {
-          this.advance();
-          const idx = this.parseExpression();
-          this.consume(TokenType.RBRACKET, 'Expected "]"');
-          expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
-        } else {
-          const name = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
-          expr = {
-            type: 'MemberAccess',
-            object: expr,
-            property: name.value as string,
-            optional: false,
-          };
-        }
-      } else if (this.match(TokenType.LBRACKET)) {
-        const idx = this.parseExpression();
-        this.consume(TokenType.RBRACKET, 'Expected "]"');
-        expr = { type: 'IndexAccess', object: expr, index: idx, optional: false };
-      }
-
-      // Handle method calls: .method()
-      if (this.check(TokenType.LPAREN)) {
-        this.advance();
-        const args: AST.Expression[] = [];
-        if (!this.check(TokenType.RPAREN)) {
-          do {
-            args.push(this.parseExpression());
-          } while (this.match(TokenType.COMMA));
-        }
-        this.consume(TokenType.RPAREN, 'Expected ")"');
-        expr = { type: 'CallExpression', callee: expr, arguments: args };
-      }
-    }
-
-    return expr;
+    return this.parseAccessChain(expr);
   }
 
   // Ternary: condition ? then : else

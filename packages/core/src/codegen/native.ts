@@ -45,221 +45,65 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
   }
 
   // ============================================================================
-  // IDENTIFIER
+  // HOOKS
   // ============================================================================
 
-  protected generateIdentifier(node: AST.Identifier): string {
-    if (this.localVariables.has(node.name)) {
-      return node.name;
-    }
-
-    // Iteration context variables
-    switch (node.name) {
-      case '$item':
-        return 'item';
-      case '$index':
-      case '$i':
-        return 'index';
-      case '$array':
-        return 'arr';
-      case '$length':
-        return 'arr.length';
-      case '$first':
-        return '(index === 0)';
-      case '$last':
-        return '(index === arr.length - 1)';
-    }
-
-    return `${this.options.inputVar}?.${node.name}`;
+  protected contextAccessOp(): string {
+    return '?.';
   }
 
-  // ============================================================================
-  // MEMBER ACCESS
-  // ============================================================================
-
-  protected generateMemberAccess(node: AST.MemberAccess): string {
-    // Auto-project property access after array-producing expressions
-    if (this.shouldAutoProject(node)) {
-      const arrayExpr = this.generateArrayExpression(node.object);
-      return `(${arrayExpr}).map((item, index, arr) => item?.${node.property})`;
-    }
-
-    const object = this.generateExpression(node.object);
-    return `${object}?.${node.property}`;
+  protected identifierFallback(input: string, name: string): string {
+    return `${input}?.${name}`;
   }
 
-  /** Generate the array expression, handling SpreadAccess specially */
-  private generateArrayExpression(node: AST.Expression): string {
-    if (node.type === 'SpreadAccess') {
-      const array = this.generateExpression(node.object);
-      return `${array} ?? []`;
-    }
-    return this.generateExpression(node);
+  protected ensureArray(obj: string, _path: string): string {
+    return `(${obj} ?? [])`;
   }
 
-  // ============================================================================
-  // INDEX ACCESS
-  // ============================================================================
-
-  protected generateIndexAccess(node: AST.IndexAccess): string {
-    const object = this.generateExpression(node.object);
-    const index = this.generateExpression(node.index);
-    return `${object}?.[${index}]`;
+  protected filterArray(arr: string, pred: string, _path: string): string {
+    return `(${arr} ?? []).filter(${pred})`;
   }
 
-  // ============================================================================
-  // SLICE ACCESS
-  // ============================================================================
-
-  protected generateSliceAccess(node: AST.SliceAccess): string {
-    const object = this.generateExpression(node.object);
-    const start = node.sliceStart ? this.generateExpression(node.sliceStart) : '0';
-    const end = node.sliceEnd ? this.generateExpression(node.sliceEnd) : '';
-    return `(${object} ?? []).slice(${start}${end ? ', ' + end : ''})`;
+  protected mapArray(arr: string, cb: string, _path: string): string {
+    return `(${arr} ?? []).map(${cb})`;
   }
 
-  // ============================================================================
-  // SPREAD ACCESS
-  // ============================================================================
-
-  protected generateSpreadAccess(node: AST.SpreadAccess): string {
-    const object = this.generateExpression(node.object);
-    return `(${object} ?? [])`;
+  protected safeIndex(obj: string, idx: string, _path: string, _optional: boolean): string {
+    return `${obj}?.[${idx}]`;
   }
 
-  // ============================================================================
-  // FILTER ACCESS
-  // ============================================================================
-
-  protected generateFilterAccess(node: AST.FilterAccess): string {
-    const object = this.generateExpression(node.object);
-    const predicateCode = this.generatePredicateFunction(node.predicate);
-    return `(${object} ?? []).filter(${predicateCode})`;
+  protected safeMemberAccess(obj: string, prop: string, _path: string, _optional: boolean): string {
+    return `${obj}?.${prop}`;
   }
 
-  protected generatePredicateFunction(predicate: AST.Expression): string {
-    const childGen = this.createChildGenerator('item');
-    const body = childGen.generateExpressionPublic(predicate);
-    return `(item, index, arr) => ${body}`;
+  protected autoProjectionMapping(item: string, prop: string, _path: string): string {
+    return `${item}?.${prop}`;
   }
 
-  // For child generators to access generateExpression
-  public generateExpressionPublic(node: AST.Expression): string {
-    return this.generateExpression(node);
+  protected pipedAccessOp(_optional: boolean): string {
+    return '?.';
   }
 
-  // ============================================================================
-  // MAP TRANSFORM
-  // ============================================================================
-
-  protected generateMapTransform(node: AST.MapTransform): string {
-    const array = this.generateExpression(node.array);
-    const childGen = this.createChildGenerator('item');
-    const templateCode = childGen.generateObjectLiteralForMap(node.template);
-    return `(${array} ?? []).map((item, index, arr) => (${templateCode}))`;
+  protected pipedIdentifier(name: string, pipe: string): string {
+    const nativeCode = this.generateNativeHelperCall(name, [pipe]);
+    if (nativeCode) return nativeCode;
+    this.warnUnknownHelper(name, 'helper');
+    return `${name}(${pipe})`;
   }
 
-  protected generateObjectLiteralForMap(node: AST.ObjectLiteral): string {
-    if (node.properties.length === 0) return '{}';
-
-    const props = node.properties.map((prop) => {
-      switch (prop.type) {
-        case 'StandardProperty':
-          const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
-            ? prop.key
-            : JSON.stringify(prop.key);
-          return `${key}: ${this.generateExpression(prop.value)}`;
-        case 'ShorthandProperty':
-          return `${prop.key}: item?.${prop.key}`;
-        case 'ComputedProperty':
-          return `[${this.generateExpression(prop.key)}]: ${this.generateExpression(prop.value)}`;
-        case 'SpreadProperty':
-          return `...${this.generateExpression(prop.argument)}`;
+  protected pipedCall(name: string, pipe: string, node: AST.CallExpression): string | null {
+    // Handle sort/groupBy/keyBy with property path argument
+    const helperMethods = ['sort', 'sortDesc', 'groupBy', 'keyBy'];
+    if (helperMethods.includes(name) && node.arguments.length === 1) {
+      const arg = node.arguments[0];
+      const keyPath = arg.type === 'StringLiteral' ? arg.value : this.tryExtractPropertyPath(arg);
+      if (keyPath !== null && keyPath !== '') {
+        return this.generateNativeArrayMethod(pipe, name, keyPath);
       }
-    });
-
-    return `{ ${props.join(', ')} }`;
-  }
-
-  // ============================================================================
-  // CONTEXT ACCESS
-  // ============================================================================
-
-  protected generateRootAccess(node: AST.RootAccess): string {
-    const input = this.options.inputVar;
-    if (node.path === null) {
-      return input;
-    }
-    return `${input}?.${node.path}`;
-  }
-
-  protected generateParentAccess(node: AST.ParentAccess): string {
-    const parent = this.options.parentVar;
-    if (node.path === null) {
-      return parent;
-    }
-    return `${parent}?.${node.path}`;
-  }
-
-  protected generateCurrentAccess(node: AST.CurrentAccess): string {
-    const input = this.options.inputVar;
-    if (node.path === null) {
-      return input;
-    }
-    return `${input}?.${node.path}`;
-  }
-
-  protected generateBindingAccess(node: AST.BindingAccess): string {
-    const bindings = this.options.bindingsVar;
-    return `${bindings}?.${node.name}`;
-  }
-
-  // ============================================================================
-  // PIPE EXPRESSION
-  // ============================================================================
-
-  protected generatePipeExpression(node: AST.PipeExpression): string {
-    const left = this.generateExpression(node.left);
-
-    // Object literal on right - pipe-to-object construction
-    if (node.right.type === 'ObjectLiteral') {
-      const tempVar = this.getTempVar('_pipe');
-      const prevPipeVar = this.pipeContextVar;
-      this.pipeContextVar = tempVar;
-      const right = this.generateExpression(node.right);
-      this.pipeContextVar = prevPipeVar;
-      return `(((${tempVar}) => (${right}))(${left}))`;
     }
 
-    // Array literal on right - pipe-to-array construction
-    if (node.right.type === 'ArrayLiteral') {
-      const tempVar = this.getTempVar('_pipe');
-      const prevPipeVar = this.pipeContextVar;
-      this.pipeContextVar = tempVar;
-      const right = this.generateExpression(node.right);
-      this.pipeContextVar = prevPipeVar;
-      return `(((${tempVar}) => ${right})(${left}))`;
-    }
-
-    // PipeContextRef (jq-style property access)
-    if (this.containsPipeContextRef(node.right)) {
-      const tempVar = this.getTempVar('_pipe');
-      const prevPipeVar = this.pipeContextVar;
-      this.pipeContextVar = tempVar;
-      const right = this.generateExpression(node.right);
-      this.pipeContextVar = prevPipeVar;
-      return `(((${tempVar}) => ${right})(${left}))`;
-    }
-
-    // Try piped call
-    const pipedResult = this.tryGeneratePipedCall(node.right, left);
-    if (pipedResult) {
-      return pipedResult;
-    }
-
-    // Fallback
-    const right = this.generateExpression(node.right);
-    return `${right}(${left})`;
+    const args = node.arguments.map((a) => this.generateExpression(a));
+    return this.generateNativeHelperCall(name, [pipe, ...args]);
   }
 
   // ============================================================================
@@ -306,106 +150,6 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
 
     const callee = this.generateExpression(node.callee);
     return `${callee}(${args.join(', ')})`;
-  }
-
-  // ============================================================================
-  // PIPED CALL
-  // ============================================================================
-
-  protected tryGeneratePipedCall(node: AST.Expression, pipeValue: string): string | null {
-    // Direct identifier: value | funcName
-    if (node.type === 'Identifier') {
-      const funcName = node.name;
-      const nativeCode = this.generateNativeHelperCall(funcName, [pipeValue]);
-      if (nativeCode) return nativeCode;
-      // Custom helper - warn and generate as function call (must be in scope)
-      this.warnUnknownHelper(funcName, 'helper');
-      return `${funcName}(${pipeValue})`;
-    }
-
-    // Direct call: value | funcName(args)
-    if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
-      const funcName = node.callee.name;
-
-      // Handle sort/groupBy/keyBy with property path argument
-      const helperMethods = ['sort', 'sortDesc', 'groupBy', 'keyBy'];
-      if (helperMethods.includes(funcName) && node.arguments.length === 1) {
-        const arg = node.arguments[0];
-        let keyPath: string | null = null;
-
-        if (arg.type === 'StringLiteral') {
-          keyPath = arg.value;
-        } else {
-          keyPath = this.tryExtractPropertyPath(arg);
-        }
-
-        if (keyPath !== null && keyPath !== '') {
-          return this.generateNativeArrayMethod(pipeValue, funcName, keyPath);
-        }
-      }
-
-      const args = node.arguments.map((a) => this.generateExpression(a));
-      const nativeCode = this.generateNativeHelperCall(funcName, [pipeValue, ...args]);
-      if (nativeCode) return nativeCode;
-      return null;
-    }
-
-    // Index access wrapping a pipeable call
-    if (node.type === 'IndexAccess') {
-      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
-      if (innerResult) {
-        const index = this.generateExpression(node.index);
-        return `${innerResult}?.[${index}]`;
-      }
-    }
-
-    // Slice access wrapping a pipeable call
-    if (node.type === 'SliceAccess') {
-      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
-      if (innerResult) {
-        const start = node.sliceStart ? this.generateExpression(node.sliceStart) : '0';
-        const end = node.sliceEnd ? this.generateExpression(node.sliceEnd) : '';
-        return `(${innerResult}).slice(${start}${end ? ', ' + end : ''})`;
-      }
-    }
-
-    // Method call on a pipeable expression: value | keys().map(x => x)
-    if (node.type === 'CallExpression' && node.callee.type === 'MemberAccess') {
-      const innerResult = this.tryGeneratePipedCall(node.callee.object, pipeValue);
-      if (innerResult) {
-        const method = node.callee.property;
-        const args = node.arguments.map((a) => this.generateExpression(a));
-        return `${innerResult}?.${method}(${args.join(', ')})`;
-      }
-    }
-
-    // Property access on a pipeable expression: value | keys().length
-    if (node.type === 'MemberAccess') {
-      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
-      if (innerResult) {
-        return `${innerResult}?.${node.property}`;
-      }
-    }
-
-    // Spread access wrapping a pipeable call: value | entries()[*]
-    if (node.type === 'SpreadAccess') {
-      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
-      if (innerResult) {
-        return innerResult;
-      }
-    }
-
-    // MapTransform wrapping a pipeable call: value | entries()[*].{ key: .[0], items: .[1] }
-    if (node.type === 'MapTransform') {
-      const innerResult = this.tryGeneratePipedCall((node as any).array, pipeValue);
-      if (innerResult) {
-        const childGen = this.createChildGenerator('item');
-        const templateCode = childGen.generateObjectLiteralForMap(node.template);
-        return `(${innerResult} ?? []).map((item, index, arr) => (${templateCode}))`;
-      }
-    }
-
-    return null;
   }
 
   // ============================================================================
