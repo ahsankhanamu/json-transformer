@@ -118,9 +118,15 @@ export class Parser {
   // Determine if | [...] is array construction or index access
   // Array construction: | [.id, .name] or | [id, name] (shorthand) or | [expr, expr, ...]
   // Index access: | [0] or | [expr] (single non-identifier expression)
+  // Spread map: | [*].{ } spreads the pipe value and maps each element
   private parsePipeArrayOrIndex(): AST.Expression {
     // Peek at what follows [
     const afterBracket = this.peekNext(); // token after [
+
+    // If [ is followed by *, it's a spread: | [*] or | [*].{ }
+    if (afterBracket.type === TokenType.STAR) {
+      return this.parsePipeSpreadAccess();
+    }
 
     // If [ is followed by DOT, it's array construction with pipe context refs: [.id, .name]
     if (afterBracket.type === TokenType.DOT) {
@@ -145,6 +151,50 @@ export class Parser {
 
     // Otherwise (number, string, expression), treat as index access
     return this.parsePipeIndexAccess();
+  }
+
+  // Parse pipe spread: | [*] or | [*].{ template }
+  // Creates SpreadAccess on PipeContextRef, allowing MapTransform via postfix .{ }
+  private parsePipeSpreadAccess(): AST.Expression {
+    this.advance(); // consume [
+    this.advance(); // consume *
+    this.consume(TokenType.RBRACKET, 'Expected "]" after "*"');
+
+    let expr: AST.Expression = { type: 'SpreadAccess', object: { type: 'PipeContextRef' } };
+
+    // Allow postfix chaining: [*].{ } for MapTransform, [*].field, etc.
+    while (true) {
+      if (this.match(TokenType.DOT)) {
+        if (expr.type === 'SpreadAccess' && this.match(TokenType.LBRACE)) {
+          // [*].{ } — MapTransform
+          // Do NOT set inPipeObjectContext here: inside the template,
+          // . must resolve to the current map item (CurrentAccess), not the pipe value
+          const savedContext = this.inPipeObjectContext;
+          this.inPipeObjectContext = false;
+          const objectLiteral = this.parseObjectLiteral();
+          this.inPipeObjectContext = savedContext;
+          expr = {
+            type: 'MapTransform',
+            array: (expr as any).object,
+            template: objectLiteral,
+          } as any;
+        } else {
+          const property = this.consume(TokenType.IDENTIFIER, 'Expected property name after "."');
+          expr = {
+            type: 'MemberAccess',
+            object: expr,
+            property: property.value as string,
+            optional: false,
+          };
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        expr = this.parseIndexOrSliceOrFilter(expr, false);
+      } else {
+        break;
+      }
+    }
+
+    return expr;
   }
 
   // Parse pipe-to-object construction: value | { id: .id, name: .name | upper }
@@ -918,8 +968,20 @@ export class Parser {
           }
         } else {
           this.consume(TokenType.COLON, 'Expected ":" after property key');
-          const value = this.parseExpression();
-          properties.push({ type: 'StandardProperty', key, value });
+          // Check for inline let/const: key: let name = expr
+          if (this.check(TokenType.LET) || this.check(TokenType.CONST)) {
+            this.advance(); // consume let/const
+            const nameToken = this.consume(
+              TokenType.IDENTIFIER,
+              'Expected variable name after let/const'
+            );
+            this.consume(TokenType.ASSIGN, 'Expected "=" after variable name');
+            const value = this.parseExpression();
+            properties.push({ type: 'InlineLetProperty', key, name: nameToken.value, value });
+          } else {
+            const value = this.parseExpression();
+            properties.push({ type: 'StandardProperty', key, value });
+          }
         }
       }
 
@@ -1081,6 +1143,9 @@ export class Parser {
     }
     if (expr.type === 'ObjectLiteral') {
       return { type: 'Parameter', name: '', destructure: expr };
+    }
+    if (expr.type === 'ArrayLiteral') {
+      return { type: 'Parameter', name: '', arrayDestructure: expr };
     }
     throw new ParseError('Expected parameter name', this.peek());
   }

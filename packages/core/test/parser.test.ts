@@ -320,6 +320,69 @@ describe('Parser', () => {
       const result = evaluate(testData, 'user | keys().filter(k => k.startsWith("e"))');
       expect(result).toEqual(['email']);
     });
+
+    test('pipe spread with MapTransform: | [*].{ }', () => {
+      const data = {
+        items: [
+          { id: 1, category: 'A', name: 'x' },
+          { id: 2, category: 'A', name: 'y' },
+          { id: 3, category: 'B', name: 'z' },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'items | groupBy(category) | entries() | [*].{ key: .[0], items: .[1] }'
+      );
+      expect(result).toEqual([
+        {
+          key: 'A',
+          items: [
+            { id: 1, category: 'A', name: 'x' },
+            { id: 2, category: 'A', name: 'y' },
+          ],
+        },
+        { key: 'B', items: [{ id: 3, category: 'B', name: 'z' }] },
+      ]);
+    });
+
+    test('pipe spread with property access: | [*].field', () => {
+      const data = { items: [{ name: 'a' }, { name: 'b' }] };
+      const result = evaluate(data, 'items | [*].name');
+      expect(result).toEqual(['a', 'b']);
+    });
+
+    test('piped call with spread: | entries()[*]', () => {
+      const data = { obj: { a: 1, b: 2 } };
+      const result = evaluate(data, 'obj | entries()');
+      expect(result).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ]);
+    });
+
+    test('piped call with spread and MapTransform: | entries()[*].{ }', () => {
+      const data = {
+        items: [
+          { id: 1, category: 'A', name: 'x' },
+          { id: 2, category: 'A', name: 'y' },
+          { id: 3, category: 'B', name: 'z' },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'items | groupBy(category) | entries()[*].{ key: .[0], items: .[1] }'
+      );
+      expect(result).toEqual([
+        {
+          key: 'A',
+          items: [
+            { id: 1, category: 'A', name: 'x' },
+            { id: 2, category: 'A', name: 'y' },
+          ],
+        },
+        { key: 'B', items: [{ id: 3, category: 'B', name: 'z' }] },
+      ]);
+    });
   });
 
   describe('Object Construction', () => {
@@ -406,6 +469,29 @@ describe('Parser', () => {
       };
       expect(evaluate(data, 'items.filter(x => .a > .b)')).toEqual([{ a: 5, b: 3 }]);
     });
+
+    test('array destructuring in arrow params', () => {
+      const data = { obj: { a: 1, b: 2, c: 3 } };
+      const result = evaluate(data, 'obj | entries().map(([k, v]) => k & "=" & v)');
+      expect(result).toEqual(['a=1', 'b=2', 'c=3']);
+    });
+
+    test('array destructuring with pipe and object construction', () => {
+      const data = {
+        items: [
+          { id: 1, category: 'A', name: 'x' },
+          { id: 2, category: 'B', name: 'y' },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'items | groupBy(category) | entries().map(([key, items]) => ({ agendaId: key, items: items }))'
+      );
+      expect(result).toEqual([
+        { agendaId: 'A', items: [{ id: 1, category: 'A', name: 'x' }] },
+        { agendaId: 'B', items: [{ id: 2, category: 'B', name: 'y' }] },
+      ]);
+    });
   });
 
   describe('Function Calls', () => {
@@ -445,6 +531,47 @@ describe('Parser', () => {
       expect(result.subtotal).toBeCloseTo(51.98);
       expect(result.tax).toBeCloseTo(5.198);
       expect(result.total).toBeCloseTo(57.178);
+    });
+  });
+
+  describe('Inline Let in Object Literals', () => {
+    test('basic inline let', () => {
+      const result = evaluate(
+        testData,
+        '{ total: let t = orders[0].price * orders[0].quantity, doubled: t * 2 }'
+      ) as any;
+      expect(result.total).toBeCloseTo(51.98);
+      expect(result.doubled).toBeCloseTo(103.96);
+    });
+
+    test('chained inline lets', () => {
+      const result = evaluate({}, '{ a: let x = 1, b: let y = x + 1, c: y + 1 }') as any;
+      expect(result).toEqual({ a: 1, b: 2, c: 3 });
+    });
+
+    test('inline let with pipe', () => {
+      const result = evaluate(
+        testData,
+        '{ shipped: let s = orders[? status === "shipped"], count: count(s) }'
+      ) as any;
+      expect(result.shipped).toHaveLength(2);
+      expect(result.count).toBe(2);
+    });
+
+    test('mixed with regular properties', () => {
+      const result = evaluate(
+        testData,
+        '{ name: user.firstName, items: let i = orders[*].product, count: count(i) }'
+      ) as any;
+      expect(result.name).toBe('John');
+      expect(result.items).toEqual(['Widget', 'Gadget', 'Gizmo']);
+      expect(result.count).toBe(3);
+    });
+
+    test('inline let generates valid JS with toJS', () => {
+      const code = toJS('{ total: let t = price * qty, doubled: t * 2 }');
+      expect(code).toContain('const t');
+      expect(code).toContain('return');
     });
   });
 

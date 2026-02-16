@@ -451,6 +451,27 @@ export class LibraryCodeGenerator extends BaseCodeGenerator {
       }
     }
 
+    // Spread access wrapping a pipeable call: value | entries()[*]
+    if (node.type === 'SpreadAccess') {
+      const innerResult = this.tryGeneratePipedCall(node.object, pipeValue);
+      if (innerResult) {
+        return innerResult;
+      }
+    }
+
+    // MapTransform wrapping a pipeable call: value | entries()[*].{ key: .[0], items: .[1] }
+    if (node.type === 'MapTransform') {
+      const innerResult = this.tryGeneratePipedCall((node as any).array, pipeValue);
+      if (innerResult) {
+        const childGen = this.createChildGenerator('item');
+        const templateCode = childGen.generateObjectLiteralForMap(node.template);
+        if (this.strict) {
+          return `__helpers.strictMap(${innerResult}, (item, index, arr) => (${templateCode}), "pipe")`;
+        }
+        return `(${innerResult} ?? []).map((item, index, arr) => (${templateCode}))`;
+      }
+    }
+
     return null;
   }
 

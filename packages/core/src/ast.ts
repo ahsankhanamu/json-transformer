@@ -55,7 +55,8 @@ export type ObjectProperty =
   | StandardProperty
   | ShorthandProperty
   | ComputedProperty
-  | SpreadProperty;
+  | SpreadProperty
+  | InlineLetProperty;
 
 export interface StandardProperty extends BaseNode {
   type: 'StandardProperty';
@@ -77,6 +78,13 @@ export interface ComputedProperty extends BaseNode {
 export interface SpreadProperty extends BaseNode {
   type: 'SpreadProperty';
   argument: Expression;
+}
+
+export interface InlineLetProperty extends BaseNode {
+  type: 'InlineLetProperty';
+  key: string;
+  name: string;
+  value: Expression;
 }
 
 export interface ArrayLiteral extends BaseNode {
@@ -221,6 +229,7 @@ export interface Parameter extends BaseNode {
   type: 'Parameter';
   name: string;
   destructure?: ObjectLiteral;
+  arrayDestructure?: ArrayLiteral;
   typeAnnotation?: TypeAnnotation;
   defaultValue?: Expression;
 }

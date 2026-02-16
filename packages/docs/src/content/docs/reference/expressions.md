@@ -288,6 +288,27 @@ user | [.id, .name, .email]
 user | [id, name, email]
 ```
 
+### Pipe Spread and Map
+
+Spread a piped array with `| [*]` and optionally map each element with `.{ }`:
+
+```javascript
+// Spread and map to objects
+items | groupBy(category) | entries() | [*].{ key: .[0], items: .[1] }
+
+// Chain [*] directly on a piped function call
+items | groupBy(category) | entries()[*].{ key: .[0], items: .[1] }
+
+// Spread and access a property from each element
+items | [*].name
+```
+
+Inside `[*].{ }`, the dot (`.`) refers to the **current item** being mapped, not the pipe context. This is the same behavior as the regular `array[*].{ }` syntax.
+
+:::note
+`| []` (empty brackets) creates an empty array — it does **not** spread. Use `| [*]` for spreading in pipe chains.
+:::
+
 ### Generated Code
 
 Pipe expressions generate clean, readable JavaScript:
@@ -304,5 +325,11 @@ function transform(input) {
   let _pipe = "hello";
   _pipe = _pipe?.split("");
   return _pipe?.[0];
+}
+
+// Expression: items | [*].name
+function transform(input) {
+  let _pipe = input?.items;
+  return (_pipe ?? []).map((item) => item?.name);
 }
 ```

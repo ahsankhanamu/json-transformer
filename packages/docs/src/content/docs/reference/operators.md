@@ -102,7 +102,10 @@ items[-2:]     // Last 2 items
 
 | Operator | Description | Example |
 |----------|-------------|---------|
-| `\|` | Pipe | `name \| upper \| trim` |
+| `\|` | Pipe to function | `name \| upper \| trim` |
+| `\| .field` | Pipe property access | `user \| .name` |
+| `\| { }` | Pipe to object | `user \| { id, name }` |
+| `\| [*].{ }` | Pipe spread and map | `items \| [*].{ id: .id }` |
 
 Pipes the result of the left expression as the first argument to the right function:
 
@@ -110,6 +113,9 @@ Pipes the result of the left expression as the first argument to the right funct
 "  hello  " | trim | upper     // "HELLO"
 orders | filter(x => x.active) | count
 items | sort("price") | first
+
+// Spread and map in pipe chains
+items | groupBy(category) | entries() | [*].{ key: .[0], items: .[1] }
 ```
 
 ## Spread Operator

@@ -247,26 +247,76 @@ export abstract class BaseCodeGenerator {
   protected generateObjectLiteral(node: AST.ObjectLiteral): string {
     if (node.properties.length === 0) return '{}';
 
-    const props = node.properties.map((prop) => {
-      switch (prop.type) {
-        case 'StandardProperty':
-          const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
-            ? prop.key
-            : JSON.stringify(prop.key);
-          return `${key}: ${this.generateExpression(prop.value)}`;
-        case 'ShorthandProperty':
-          return prop.key;
-        case 'ComputedProperty':
-          return `[${this.generateExpression(prop.key)}]: ${this.generateExpression(prop.value)}`;
-        case 'SpreadProperty':
-          return `...${this.generateExpression(prop.argument)}`;
-      }
-    });
+    const hasInlineLets = node.properties.some((p) => p.type === 'InlineLetProperty');
+
+    if (hasInlineLets) {
+      return this.generateObjectLiteralWithInlineLets(node);
+    }
+
+    const props = node.properties.map((prop) => this.generateObjectProperty(prop));
 
     if (this.options.pretty && props.length > 2) {
       return `{\n${this.indentCode(props.join(',\n'), 1)}\n}`;
     }
     return `{ ${props.join(', ')} }`;
+  }
+
+  protected generateObjectProperty(prop: AST.ObjectProperty): string {
+    switch (prop.type) {
+      case 'StandardProperty': {
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
+          ? prop.key
+          : JSON.stringify(prop.key);
+        return `${key}: ${this.generateExpression(prop.value)}`;
+      }
+      case 'ShorthandProperty':
+        return prop.key;
+      case 'ComputedProperty':
+        return `[${this.generateExpression(prop.key)}]: ${this.generateExpression(prop.value)}`;
+      case 'SpreadProperty':
+        return `...${this.generateExpression(prop.argument)}`;
+      case 'InlineLetProperty':
+        // Should not be called directly; handled in generateObjectLiteralWithInlineLets
+        return `${prop.key}: ${prop.name}`;
+    }
+  }
+
+  protected generateObjectLiteralWithInlineLets(node: AST.ObjectLiteral): string {
+    const savedLocals = new Set(this.localVariables);
+    const lines: string[] = [];
+
+    // Emit const declarations for inline lets, then build the object
+    for (const prop of node.properties) {
+      if (prop.type === 'InlineLetProperty') {
+        const value = this.generateExpression(prop.value);
+        lines.push(`const ${prop.name} = ${value};`);
+        this.localVariables.add(prop.name);
+      }
+    }
+
+    // Now generate the object literal with inline lets resolved as bare names
+    const props = node.properties.map((prop) => {
+      if (prop.type === 'InlineLetProperty') {
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
+          ? prop.key
+          : JSON.stringify(prop.key);
+        return `${key}: ${prop.name}`;
+      }
+      return this.generateObjectProperty(prop);
+    });
+
+    let objStr: string;
+    if (this.options.pretty && props.length > 2) {
+      objStr = `{\n${this.indentCode(props.join(',\n'), 1)}\n}`;
+    } else {
+      objStr = `{ ${props.join(', ')} }`;
+    }
+
+    lines.push(`return ${objStr};`);
+
+    this.localVariables = savedLocals;
+
+    return `(() => {\n${this.indentCode(lines.join('\n'), 1)}\n})()`;
   }
 
   protected generateArrayLiteral(node: AST.ArrayLiteral): string {
@@ -381,6 +431,15 @@ export abstract class BaseCodeGenerator {
         if (p.destructure) {
           return this.generateObjectLiteral(p.destructure);
         }
+        if (p.arrayDestructure) {
+          const names = p.arrayDestructure.elements.map((el) => {
+            if (el.type === 'Identifier') return el.name;
+            if (el.type === 'SpreadElement' && el.argument.type === 'Identifier')
+              return `...${el.argument.name}`;
+            return '_';
+          });
+          return `[${names.join(', ')}]`;
+        }
         return p.name;
       })
       .join(', ');
@@ -393,6 +452,12 @@ export abstract class BaseCodeGenerator {
             this.localVariables.add(prop.key);
           } else if (prop.type === 'StandardProperty' && prop.value.type === 'Identifier') {
             this.localVariables.add(prop.value.name);
+          }
+        }
+      } else if (param.arrayDestructure) {
+        for (const el of param.arrayDestructure.elements) {
+          if (el.type === 'Identifier') {
+            this.localVariables.add(el.name);
           }
         }
       } else {
@@ -530,6 +595,8 @@ export abstract class BaseCodeGenerator {
     if (node.type === 'PipeContextRef') return true;
     if (node.type === 'MemberAccess') return this.containsPipeContextRef(node.object);
     if (node.type === 'IndexAccess') return this.containsPipeContextRef(node.object);
+    if (node.type === 'SpreadAccess') return this.containsPipeContextRef(node.object);
+    if (node.type === 'MapTransform') return this.containsPipeContextRef((node as any).array);
     if (node.type === 'CallExpression') {
       return (
         this.containsPipeContextRef(node.callee) ||
@@ -538,7 +605,11 @@ export abstract class BaseCodeGenerator {
     }
     if (node.type === 'ObjectLiteral') {
       return node.properties.some((prop) => {
-        if (prop.type === 'StandardProperty' || prop.type === 'ComputedProperty') {
+        if (
+          prop.type === 'StandardProperty' ||
+          prop.type === 'ComputedProperty' ||
+          prop.type === 'InlineLetProperty'
+        ) {
           return this.containsPipeContextRef(prop.value);
         }
         if (prop.type === 'SpreadProperty') {
