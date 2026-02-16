@@ -12,7 +12,14 @@
     selectedCompletion,
   } from '@codemirror/autocomplete';
   import { keymap, WidgetType, Decoration } from '@codemirror/view';
-  import { syntaxHighlighting, HighlightStyle, foldAll, unfoldAll } from '@codemirror/language';
+  import {
+    syntaxHighlighting,
+    HighlightStyle,
+    unfoldAll,
+    foldable,
+    foldEffect,
+    syntaxTree,
+  } from '@codemirror/language';
   import { tags } from '@lezer/highlight';
   import { functions, keywords } from '$lib/language/transformerLanguage.js';
   import {
@@ -99,8 +106,37 @@
   }
 
   export function collapseAllFolds() {
-    if (editorView) {
-      foldAll(editorView);
+    if (!editorView) return;
+
+    // First unfold everything to reset state
+    unfoldAll(editorView);
+
+    // Collect all foldable ranges with their depth
+    const ranges = [];
+    const state = editorView.state;
+
+    syntaxTree(state).iterate({
+      enter: (node) => {
+        const range = foldable(state, node.from, node.to);
+        if (range) {
+          let depth = 0;
+          for (const r of ranges) {
+            if (r.from <= range.from && r.to >= range.to) {
+              depth++;
+            }
+          }
+          ranges.push({ ...range, depth });
+        }
+      },
+    });
+
+    // Sort by depth descending (innermost first)
+    ranges.sort((a, b) => b.depth - a.depth);
+
+    // Fold from innermost to outermost
+    const effects = ranges.map((range) => foldEffect.of({ from: range.from, to: range.to }));
+    if (effects.length > 0) {
+      editorView.dispatch({ effects });
     }
   }
 
