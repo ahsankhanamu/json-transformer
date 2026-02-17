@@ -23,23 +23,22 @@ const DEFAULT_INPUT_JSON = `{
   "tags": ["electronics", "sale", "featured"]
 }`;
 
-const DEFAULT_EXPRESSION = `{
-  fullName: \`\${user.firstName} \${user.lastName}\`,
+const DEFAULT_EXPRESSION = `// Reusable helpers
+const TAX_RATE = 0.1;
+let lineTotal = (o) => o.price * o.quantity;
+
+// Compute and update
+let total = orders | map(o => lineTotal(o)) | sum;
+total = total + total * TAX_RATE;
+
+{
+  name: user.firstName & " " & user.lastName,
   location: \`\${user.address.city}, \${user.address.country}\`,
-
-  // Filter with auto-projection (no need for [] after filter)
   shippedProducts: orders[? status === "shipped"].product,
-
-  // Piped helpers: filter() and map()
-  shippedProducts2: orders | filter(o => o.status === "shipped") | map(o => o.product),
-
-  // Native JS methods
-  shippedProducts3: orders.filter(o => o.status === "shipped").map(o => o.product),
-
-  // Pipe with aggregation helpers
   orderCount: orders | count,
   allProducts: orders[].product | join(", "),
-  totalValue: orders | map(o => o.price * o.quantity) | sum
+  orderSummary: orders[*].{ product, total: lineTotal(.) },
+  totalWithTax: total
 }`;
 
 /** @type {import('svelte/store').Writable<import('../db.js').PlaygroundFile[]>} */

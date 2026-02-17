@@ -96,37 +96,22 @@ export const inputJson = writable(`{
   "tags": ["electronics", "sale", "featured"]
 }`);
 
-export const expression = writable(`// User-defined functions
-let fullName = (u) => u.firstName & " " & u.lastName;
-let lineTotal = (o) => o.price * o.quantity;
+export const expression = writable(`// Reusable helpers
 const TAX_RATE = 0.1;
+let lineTotal = (o) => o.price * o.quantity;
 
-// Reassignment
-let totalValue = orders | map(o => lineTotal(o)) | sum;
-totalValue = totalValue + totalValue * TAX_RATE;
+// Compute and update
+let total = orders | map(o => lineTotal(o)) | sum;
+total = total + total * TAX_RATE;
 
 {
-  // Use custom functions
-  name: fullName(user),
+  name: user.firstName & " " & user.lastName,
   location: \`\${user.address.city}, \${user.address.country}\`,
-
-  // Filter with auto-projection
   shippedProducts: orders[? status === "shipped"].product,
-
-  // Pipe with helpers
   orderCount: orders | count,
   allProducts: orders[].product | join(", "),
-
-  // Custom function in map transform
-  orderSummary: orders[*].{
-    product,
-    total: lineTotal(.),
-    shipped: status === "shipped"
-  },
-
-  // Const + reassigned let
-  taxRate: TAX_RATE,
-  totalWithTax: totalValue
+  orderSummary: orders[*].{ product, total: lineTotal(.) },
+  totalWithTax: total
 }`);
 export const strictMode = writable(false);
 // Preview expression shown when navigating autocomplete (null when not previewing)
