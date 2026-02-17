@@ -1,6 +1,6 @@
 {
   "name": "@ahsankhanamu/json-transformer",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "JSON Query and Transformation Language",
   "type": "module",
   "main": "dist/index.js",
@@ -71,10 +71,10 @@
     "url": "https://github.com/ahsankhanamu/json-transformer/issues"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.11.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.33",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.9.3"
   }
 }
