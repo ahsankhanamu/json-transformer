@@ -788,4 +788,34 @@ describe('Parser', () => {
       expect(js).toContain('return { calc: double, result: double(item?.value) };');
     });
   });
+
+  describe('Let Reassignment', () => {
+    test('basic reassignment', () => {
+      expect(evaluate({}, 'let x = 5; x = x + 1; x * 2')).toBe(12);
+    });
+
+    test('multiple reassignments', () => {
+      expect(evaluate({}, 'let x = 1; x = x + 10; x = x * 2; x')).toBe(22);
+    });
+
+    test('reassignment with input data', () => {
+      expect(evaluate({ price: 100 }, 'let total = price; total = total * 1.2; total')).toBe(120);
+    });
+
+    test('reassignment generates let not const', () => {
+      const js = toJS('let x = 5; x = x + 1; x');
+      expect(js).toContain('let x = 5');
+      expect(js).toContain('x = (x + 1);');
+    });
+
+    test('const cannot be reassigned', () => {
+      expect(() => evaluate({}, 'const x = 5; x = 10; x')).toThrow(
+        /Cannot reassign const binding "x"/
+      );
+    });
+
+    test('const still works normally', () => {
+      expect(evaluate({}, 'const x = 5; x * 2')).toBe(10);
+    });
+  });
 });

@@ -357,7 +357,7 @@ export const builder = {
     elements,
   }),
 
-  program: (expression: AST.Expression, statements: AST.LetBinding[] = []): AST.Program => ({
+  program: (expression: AST.Expression, statements: AST.Statement[] = []): AST.Program => ({
     type: 'Program',
     statements,
     expression,

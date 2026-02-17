@@ -33,12 +33,19 @@ export class Parser {
     this.tokens = lexer.tokenize();
     this.current = 0;
 
-    const statements: AST.LetBinding[] = [];
+    const statements: AST.Statement[] = [];
+    const constBindings = new Set<string>();
     let expression: AST.Expression | null = null;
 
-    // Parse statements (let/const bindings)
-    while (!this.isAtEnd() && (this.check(TokenType.LET) || this.check(TokenType.CONST))) {
-      statements.push(this.parseLetBinding());
+    // Parse statements (let/const bindings and reassignments)
+    while (!this.isAtEnd() && this.isStatementStart()) {
+      if (this.check(TokenType.LET) || this.check(TokenType.CONST)) {
+        const binding = this.parseLetBinding();
+        if (binding.constant) constBindings.add(binding.name);
+        statements.push(binding);
+      } else {
+        statements.push(this.parseAssignment(constBindings));
+      }
     }
 
     // Parse final expression
@@ -76,6 +83,31 @@ export class Parser {
       name: nameToken.value,
       value,
       constant,
+    };
+  }
+
+  private isStatementStart(): boolean {
+    if (this.check(TokenType.LET) || this.check(TokenType.CONST)) return true;
+    // identifier followed by = is a reassignment
+    if (this.check(TokenType.IDENTIFIER) && this.peekNext().type === TokenType.ASSIGN) {
+      return true;
+    }
+    return false;
+  }
+
+  private parseAssignment(constBindings: Set<string>): AST.Assignment {
+    const nameToken = this.consume(TokenType.IDENTIFIER, 'Expected variable name');
+    if (constBindings.has(nameToken.value)) {
+      throw new ParseError(`Cannot reassign const binding "${nameToken.value}"`, nameToken);
+    }
+    this.consume(TokenType.ASSIGN, 'Expected "=" after variable name');
+    const value = this.parseExpression();
+    this.consume(TokenType.SEMICOLON, 'Expected ";" after assignment');
+
+    return {
+      type: 'Assignment',
+      name: nameToken.value,
+      value,
     };
   }
 

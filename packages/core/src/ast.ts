@@ -261,9 +261,17 @@ export interface LetBinding extends BaseNode {
   constant: boolean;
 }
 
+export interface Assignment extends BaseNode {
+  type: 'Assignment';
+  name: string;
+  value: Expression;
+}
+
+export type Statement = LetBinding | Assignment;
+
 export interface Program extends BaseNode {
   type: 'Program';
-  statements: LetBinding[];
+  statements: Statement[];
   expression: Expression | null;
 }
 
@@ -355,7 +363,7 @@ export type Expression =
   | TypeAssertion
   | NonNullAssertion;
 
-export type ASTNode = Expression | Program | LetBinding | Parameter;
+export type ASTNode = Expression | Program | LetBinding | Assignment | Parameter;
 
 // ============================================================================
 // VISITOR PATTERN
@@ -364,6 +372,7 @@ export type ASTNode = Expression | Program | LetBinding | Parameter;
 export interface Visitor<T = void> {
   visitProgram?(node: Program): T;
   visitLetBinding?(node: LetBinding): T;
+  visitAssignment?(node: Assignment): T;
   visitNumberLiteral?(node: NumberLiteral): T;
   visitStringLiteral?(node: StringLiteral): T;
   visitBooleanLiteral?(node: BooleanLiteral): T;

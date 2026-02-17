@@ -66,7 +66,7 @@ export abstract class BaseCodeGenerator {
     const parts: string[] = [];
 
     for (const stmt of program.statements) {
-      parts.push(this.generateLetBinding(stmt));
+      parts.push(this.generateStatement(stmt));
     }
 
     if (program.expression) {
@@ -84,11 +84,23 @@ export abstract class BaseCodeGenerator {
     return parts.join('\n');
   }
 
+  protected generateStatement(node: AST.Statement): string {
+    if (node.type === 'Assignment') {
+      return this.generateAssignment(node);
+    }
+    return this.generateLetBinding(node);
+  }
+
   protected generateLetBinding(node: AST.LetBinding): string {
     const keyword = node.constant ? 'const' : 'let';
     const value = this.generateExpression(node.value);
     this.localVariables.add(node.name);
     return `${keyword} ${node.name} = ${value};`;
+  }
+
+  protected generateAssignment(node: AST.Assignment): string {
+    const value = this.generateExpression(node.value);
+    return `${node.name} = ${value};`;
   }
 
   // ============================================================================
