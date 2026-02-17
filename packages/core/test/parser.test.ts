@@ -645,4 +645,66 @@ describe('Parser', () => {
       expect(evaluate(testData, 'user.adress')).toBeUndefined();
     });
   });
+
+  describe('User-Defined Functions', () => {
+    test('basic let-bound function call', () => {
+      expect(evaluate({}, 'let double = (x) => x * 2; double(5)')).toBe(10);
+    });
+
+    test('function with input data', () => {
+      const data = { user: { first: 'John', last: 'Doe' } };
+      expect(evaluate(data, 'let fullName = (u) => u.first & " " & u.last; fullName(user)')).toBe(
+        'John Doe'
+      );
+    });
+
+    test('function used in object literal', () => {
+      expect(evaluate({}, 'let double = (x) => x * 2; { doubled: double(5) }')).toEqual({
+        doubled: 10,
+      });
+    });
+
+    test('piped identifier calls local function', () => {
+      expect(evaluate({}, 'let double = (x) => x * 2; 5 | double')).toBe(10);
+    });
+
+    test('piped call with extra args', () => {
+      expect(evaluate({}, 'let add = (a, b) => a + b; 5 | add(3)')).toBe(8);
+    });
+
+    test('multi-step pipe with local functions', () => {
+      expect(
+        evaluate({}, 'let double = (x) => x * 2; let addOne = (x) => x + 1; 5 | double | addOne')
+      ).toBe(11);
+    });
+
+    test('shadows built-in helper', () => {
+      // Native upper would uppercase; our local "upper" appends "!"
+      expect(evaluate({}, 'let upper = (x) => x & "!"; upper("hello")')).toBe('hello!');
+    });
+
+    test('library mode does not prefix local functions with __helpers', () => {
+      const js = toJS('let double = (x) => x * 2; double(5)');
+      expect(js).not.toContain('__helpers.double');
+      expect(js).toContain('double(5)');
+    });
+
+    test('native mode does not warn for let-bound functions', () => {
+      const js = toJS('let double = (x) => x * 2; double(5)', { native: true });
+      expect(js).not.toContain('__helpers');
+      expect(js).toContain('double(5)');
+    });
+
+    test('library mode piped identifier does not use __helpers for local fn', () => {
+      const js = toJS('let double = (x) => x * 2; 5 | double');
+      expect(js).not.toContain('__helpers.double');
+    });
+
+    test('native mode piped identifier uses local fn, not native helper', () => {
+      // "upper" is a native built-in, but local should shadow it
+      const js = toJS('let upper = (x) => x & "!"; "hello" | upper', { native: true });
+      expect(js).not.toContain('toUpperCase');
+      expect(js).toContain('upper(');
+    });
+  });
 });

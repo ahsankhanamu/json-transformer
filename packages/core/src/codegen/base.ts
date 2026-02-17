@@ -73,6 +73,8 @@ export abstract class BaseCodeGenerator {
       if (program.expression.type === 'PipeExpression') {
         const pipeStatements = this.generateFlattenedPipeChain(program.expression);
         parts.push(...pipeStatements);
+      } else if (this.isObjectWithInlineLets(program.expression)) {
+        parts.push(...this.generateInlineLetStatements(program.expression as AST.ObjectLiteral));
       } else {
         const expr = this.generateExpression(program.expression);
         parts.push(`return ${expr};`);
@@ -127,8 +129,15 @@ export abstract class BaseCodeGenerator {
     }
 
     const lastStep = steps[steps.length - 1];
-    const finalExpr = this.generatePipeStep(lastStep, pipeVar);
-    statements.push(`return ${finalExpr};`);
+    if (this.isObjectWithInlineLets(lastStep)) {
+      const prevPipeVar = this.pipeContextVar;
+      this.pipeContextVar = pipeVar;
+      statements.push(...this.generateInlineLetStatements(lastStep as AST.ObjectLiteral));
+      this.pipeContextVar = prevPipeVar;
+    } else {
+      const finalExpr = this.generatePipeStep(lastStep, pipeVar);
+      statements.push(`return ${finalExpr};`);
+    }
 
     return statements;
   }
@@ -317,6 +326,44 @@ export abstract class BaseCodeGenerator {
     this.localVariables = savedLocals;
 
     return `(() => {\n${this.indentCode(lines.join('\n'), 1)}\n})()`;
+  }
+
+  protected isObjectWithInlineLets(node: AST.Expression): boolean {
+    return (
+      node.type === 'ObjectLiteral' && node.properties.some((p) => p.type === 'InlineLetProperty')
+    );
+  }
+
+  protected generateInlineLetStatements(node: AST.ObjectLiteral): string[] {
+    const statements: string[] = [];
+
+    for (const prop of node.properties) {
+      if (prop.type === 'InlineLetProperty') {
+        const value = this.generateExpression(prop.value);
+        statements.push(`const ${prop.name} = ${value};`);
+        this.localVariables.add(prop.name);
+      }
+    }
+
+    const props = node.properties.map((prop) => {
+      if (prop.type === 'InlineLetProperty') {
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
+          ? prop.key
+          : JSON.stringify(prop.key);
+        return `${key}: ${prop.name}`;
+      }
+      return this.generateObjectProperty(prop);
+    });
+
+    let objStr: string;
+    if (this.options.pretty && props.length > 2) {
+      objStr = `{\n${this.indentCode(props.join(',\n'), 1)}\n}`;
+    } else {
+      objStr = `{ ${props.join(', ')} }`;
+    }
+
+    statements.push(`return ${objStr};`);
+    return statements;
   }
 
   protected generateArrayLiteral(node: AST.ArrayLiteral): string {

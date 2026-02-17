@@ -85,6 +85,9 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
   }
 
   protected pipedIdentifier(name: string, pipe: string): string {
+    if (this.localVariables.has(name)) {
+      return `${name}(${pipe})`;
+    }
     const nativeCode = this.generateNativeHelperCall(name, [pipe]);
     if (nativeCode) return nativeCode;
     this.warnUnknownHelper(name, 'helper');
@@ -92,6 +95,11 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
   }
 
   protected pipedCall(name: string, pipe: string, node: AST.CallExpression): string | null {
+    if (this.localVariables.has(name)) {
+      const args = node.arguments.map((a) => this.generateExpression(a));
+      return `${name}(${pipe}${args.length ? ', ' + args.join(', ') : ''})`;
+    }
+
     // Handle sort/groupBy/keyBy with property path argument
     const helperMethods = ['sort', 'sortDesc', 'groupBy', 'keyBy'];
     if (helperMethods.includes(name) && node.arguments.length === 1) {
@@ -116,6 +124,9 @@ export class NativeCodeGenerator extends BaseCodeGenerator {
     // Built-in helper function or custom helper
     if (node.callee.type === 'Identifier') {
       const funcName = node.callee.name;
+      if (this.localVariables.has(funcName)) {
+        return `${funcName}(${args.join(', ')})`;
+      }
       const nativeCode = this.generateNativeHelperCall(funcName, args);
       if (nativeCode) return nativeCode;
       // Custom helper - warn that it must be in scope at runtime
