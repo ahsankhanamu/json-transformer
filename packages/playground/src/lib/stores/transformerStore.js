@@ -96,23 +96,37 @@ export const inputJson = writable(`{
   "tags": ["electronics", "sale", "featured"]
 }`);
 
-export const expression = writable(`{
-  fullName: \`\${user.firstName} \${user.lastName}\`,
+export const expression = writable(`// User-defined functions
+let fullName = (u) => u.firstName & " " & u.lastName;
+let lineTotal = (o) => o.price * o.quantity;
+const TAX_RATE = 0.1;
+
+// Reassignment
+let totalValue = orders | map(o => lineTotal(o)) | sum;
+totalValue = totalValue + totalValue * TAX_RATE;
+
+{
+  // Use custom functions
+  name: fullName(user),
   location: \`\${user.address.city}, \${user.address.country}\`,
 
-  // Filter with auto-projection (no need for [] after filter)
+  // Filter with auto-projection
   shippedProducts: orders[? status === "shipped"].product,
 
-  // Piped helpers: filter() and map()
-  shippedProducts2: orders | filter(o => o.status === "shipped") | map(o => o.product),
-
-  // Native JS methods
-  shippedProducts3: orders.filter(o => o.status === "shipped").map(o => o.product),
-
-  // Pipe with aggregation helpers
+  // Pipe with helpers
   orderCount: orders | count,
   allProducts: orders[].product | join(", "),
-  totalValue: orders | map(o => o.price * o.quantity) | sum
+
+  // Custom function in map transform
+  orderSummary: orders[*].{
+    product,
+    total: lineTotal(.),
+    shipped: status === "shipped"
+  },
+
+  // Const + reassigned let
+  taxRate: TAX_RATE,
+  totalWithTax: totalValue
 }`);
 export const strictMode = writable(false);
 // Preview expression shown when navigating autocomplete (null when not previewing)
