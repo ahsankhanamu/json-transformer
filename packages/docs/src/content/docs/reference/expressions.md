@@ -219,10 +219,76 @@ status == "active" or status == "pending"
 
 ## Variable Bindings
 
+### let and const
+
+Use `let` for mutable bindings and `const` for immutable bindings:
+
 ```javascript
+// const — cannot be reassigned
+const tax_rate = 0.1;
 let total = price * qty;
-let tax = total * 0.1;
+let tax = total * tax_rate;
 { subtotal: total, tax, total: total + tax }
+```
+
+### Reassignment
+
+`let` bindings can be reassigned. `const` bindings cannot:
+
+```javascript
+let x = 5;
+x = x + 1;
+x * 2
+// → 12
+
+// const reassignment throws a parse error:
+const y = 5;
+y = 10;       // ✗ Error: Cannot reassign const binding "y"
+```
+
+### Inline let in Objects
+
+Declare scoped variables inside object literals:
+
+```javascript
+{
+  total: let t = price * qty,
+  tax: t * 0.1,
+  grand: t * 1.1
+}
+```
+
+### User-Defined Functions
+
+Define reusable helper functions using `let` or `const` with arrow syntax:
+
+```javascript
+let double = (x) => x * 2;
+let fullName = (u) => u.first & " " & u.last;
+
+orders[*].{
+  name: fullName(.customer),
+  total: double(.price)
+}
+```
+
+User-defined functions work with pipes:
+
+```javascript
+let double = (x) => x * 2;
+let addOne = (x) => x + 1;
+
+5 | double                  // → 10 (piped as first argument)
+5 | add(3)                  // → 8  (piped with extra args)
+5 | double | addOne         // → 11 (multi-step pipe)
+```
+
+User-defined functions **shadow** built-in helpers:
+
+```javascript
+// Built-in upper() uppercases strings, but local definition takes precedence
+let upper = (x) => x & "!";
+upper("hello")              // → "hello!" (not "HELLO")
 ```
 
 ## Pipe Operations

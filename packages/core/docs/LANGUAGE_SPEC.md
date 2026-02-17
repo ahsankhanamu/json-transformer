@@ -66,8 +66,9 @@ Expression precedence (lowest to highest). Parser methods should align with this
 
 Statements:
 
-- Program = optional sequence of `let` / `const` bindings, then optional single expression.
+- Program = optional sequence of statements (`let`/`const` bindings and reassignments), then optional single expression.
 - Let binding = `let`|`const` id `=` expression `;`.
+- Assignment = id `=` expression `;` (only valid for `let` bindings; `const` reassignment is a parse error).
 
 Rule: new syntax must be assigned a precedence level and implemented in the corresponding parser method; no duplicate or conflicting precedence logic elsewhere.
 
@@ -86,7 +87,7 @@ All node types live in `ast.ts`. Parser must only produce these types; codegen m
 - **Operators**: `BinaryExpression`, `UnaryExpression`, `TernaryExpression`, `PipeExpression`, `PipeContextRef`, `NullCoalesce`
 - **Functions**: `CallExpression`, `ArrowFunction`, `Parameter`
 - **Control**: `IfExpression`, `ConditionalBranch`
-- **Statements**: `LetBinding`, `Program`
+- **Statements**: `LetBinding`, `Assignment`, `Program`
 - **Types (strict)**: `TypeAssertion`, `NonNullAssertion`, plus type annotation nodes
 
 Rule: adding a new language feature means (1) add or reuse an AST node type in `ast.ts`, (2) parser produces it, (3) base codegen’s `generateExpression` gets a case, (4) base/native/library implement any abstract method if needed. No “hidden” node shapes.
@@ -124,7 +125,8 @@ Codegen is specified **per AST node type**. Base generator (`base.ts`) holds the
 | CurrentAccess      | Current pipe context or `inputVar` (path may be present). |
 | BindingAccess      | `bindingsVar.name`. |
 | PipeContextRef     | Value of current pipe step (e.g. `_pipe`). |
-| CallExpression     | Callee and args generated; library may resolve helpers; native may warn unknown. |
+| CallExpression     | Local functions resolve as-is (shadowing built-ins); otherwise library uses `__helpers.`, native inlines or warns. |
+| Assignment         | `name = expr;` — only valid for `let` bindings. |
 
 Native vs library differences (e.g. strict mode, helper resolution) are options on the generator; the **semantics** of each node type above stay the same.
 
@@ -133,7 +135,8 @@ Native vs library differences (e.g. strict mode, helper resolution) are options 
 - **Pipe flattening**: one `_pipe` variable, linear steps; no nested pipe temporaries.
 - **Array-producing + property**: auto-project with `.map` when appropriate; skip when property is an array method (method chaining).
 - **Concatenation**: `&` chains flattened and emitted as one template literal.
-- **Inline lets in objects**: emitted as IIFE with consts then object, no extra functions in hot path.
+- **Inline lets in objects**: hoisted as flat statements at program/pipe level; IIFE only inside map callbacks where statement context is unavailable.
+- **User-defined functions**: `localVariables` propagated to child generators so let-bound functions resolve correctly inside map transforms, filter predicates, and piped maps.
 
 These are the only optimization patterns; they live in base (and shared helpers) so native and library stay in sync.
 
