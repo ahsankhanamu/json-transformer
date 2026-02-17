@@ -706,5 +706,86 @@ describe('Parser', () => {
       expect(js).not.toContain('toUpperCase');
       expect(js).toContain('upper(');
     });
+
+    test('local function inside map transform', () => {
+      const data = {
+        items: [
+          { id: 1, value: 3 },
+          { id: 2, value: 7 },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'let double = (x) => x * 2; items[*].{ id: id, doubled: double(value) }'
+      );
+      expect(result).toEqual([
+        { id: 1, doubled: 6 },
+        { id: 2, doubled: 14 },
+      ]);
+    });
+
+    test('local function inside piped map transform', () => {
+      const data = {
+        items: [
+          { id: 1, value: 3 },
+          { id: 2, value: 7 },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'let double = (x) => x * 2; items | [*].{ id: id, doubled: double(value) }'
+      );
+      expect(result).toEqual([
+        { id: 1, doubled: 6 },
+        { id: 2, doubled: 14 },
+      ]);
+    });
+
+    test('local function inside filter predicate', () => {
+      const data = { items: [1, 2, 3, 4, 5, 6] };
+      const result = evaluate(data, 'let isEven = (x) => x % 2 == 0; items[? isEven($item)]');
+      expect(result).toEqual([2, 4, 6]);
+    });
+
+    test('inline let function inside map transform', () => {
+      const data = {
+        items: [
+          { id: 1, value: 3 },
+          { id: 2, value: 7 },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'items[*].{ calc: let double = (x) => x * 2, doubled: double(value) }'
+      );
+      expect(result).toEqual([
+        { calc: expect.any(Function), doubled: 6 },
+        { calc: expect.any(Function), doubled: 14 },
+      ]);
+    });
+
+    test('inline let function inside piped map transform', () => {
+      const data = {
+        items: [
+          { id: 1, value: 3 },
+          { id: 2, value: 7 },
+        ],
+      };
+      const result = evaluate(
+        data,
+        'items | [*].{ calc: let double = (x) => x * 2, doubled: double(value) }'
+      );
+      expect(result).toEqual([
+        { calc: expect.any(Function), doubled: 6 },
+        { calc: expect.any(Function), doubled: 14 },
+      ]);
+    });
+
+    test('inline let function in map transform generates clean block body', () => {
+      const js = toJS('items[*].{ calc: let double = (x) => x * 2, result: double(value) }');
+      expect(js).not.toContain('(() =>');
+      expect(js).toContain('const double');
+      expect(js).toContain('return { calc: double, result: double(item?.value) };');
+    });
   });
 });

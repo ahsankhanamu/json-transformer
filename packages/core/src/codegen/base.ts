@@ -771,6 +771,7 @@ export abstract class BaseCodeGenerator {
 
   protected generatePredicateFunction(predicate: AST.Expression): string {
     const childGen = this.createChildGenerator('item');
+    childGen.localVariables = new Set(this.localVariables);
     const body = childGen.generateExpressionPublic(predicate);
     return `(item, index, arr) => ${body}`;
   }
@@ -782,23 +783,31 @@ export abstract class BaseCodeGenerator {
   protected generateObjectLiteralForMap(node: AST.ObjectLiteral): string {
     if (node.properties.length === 0) return '{}';
 
-    const props = node.properties.map((prop) => {
-      switch (prop.type) {
-        case 'StandardProperty':
-          const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
-            ? prop.key
-            : JSON.stringify(prop.key);
-          return `${key}: ${this.generateExpression(prop.value)}`;
-        case 'ShorthandProperty':
-          return `${prop.key}: item?.${prop.key}`;
-        case 'ComputedProperty':
-          return `[${this.generateExpression(prop.key)}]: ${this.generateExpression(prop.value)}`;
-        case 'SpreadProperty':
-          return `...${this.generateExpression(prop.argument)}`;
-      }
-    });
-
+    const props = node.properties.map((prop) => this.generateObjectPropertyForMap(prop));
     return `{ ${props.join(', ')} }`;
+  }
+
+  private generateObjectPropertyForMap(prop: AST.ObjectProperty): string {
+    switch (prop.type) {
+      case 'StandardProperty': {
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
+          ? prop.key
+          : JSON.stringify(prop.key);
+        return `${key}: ${this.generateExpression(prop.value)}`;
+      }
+      case 'ShorthandProperty':
+        return `${prop.key}: item?.${prop.key}`;
+      case 'ComputedProperty':
+        return `[${this.generateExpression(prop.key)}]: ${this.generateExpression(prop.value)}`;
+      case 'SpreadProperty':
+        return `...${this.generateExpression(prop.argument)}`;
+      case 'InlineLetProperty': {
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(prop.key)
+          ? prop.key
+          : JSON.stringify(prop.key);
+        return `${key}: ${prop.name}`;
+      }
+    }
   }
 
   // ============================================================================
@@ -907,8 +916,30 @@ export abstract class BaseCodeGenerator {
     const array = this.generateExpression(node.array);
     const path = this.buildPathFromNode(node.array);
     const childGen = this.createChildGenerator('item');
-    const templateCode = childGen.generateObjectLiteralForMap(node.template);
-    return this.mapArray(array, `(item, index, arr) => (${templateCode})`, path);
+    childGen.localVariables = new Set(this.localVariables);
+    const cb = this.generateMapCallback(childGen, node.template);
+    return this.mapArray(array, cb, path);
+  }
+
+  protected generateMapCallback(childGen: BaseCodeGenerator, template: AST.ObjectLiteral): string {
+    const hasInlineLets = template.properties.some((p) => p.type === 'InlineLetProperty');
+
+    if (hasInlineLets) {
+      const lines: string[] = [];
+      for (const prop of template.properties) {
+        if (prop.type === 'InlineLetProperty') {
+          const value = childGen.generateExpressionPublic(prop.value);
+          lines.push(`const ${prop.name} = ${value};`);
+          childGen.localVariables.add(prop.name);
+        }
+      }
+      const objCode = childGen.generateObjectLiteralForMap(template);
+      lines.push(`return ${objCode};`);
+      return `(item, index, arr) => {\n${this.indentCode(lines.join('\n'), 1)}\n}`;
+    }
+
+    const templateCode = childGen.generateObjectLiteralForMap(template);
+    return `(item, index, arr) => (${templateCode})`;
   }
 
   // ============================================================================
@@ -1055,8 +1086,9 @@ export abstract class BaseCodeGenerator {
       const innerResult = this.tryGeneratePipedCall((node as any).array, pipeValue);
       if (innerResult) {
         const childGen = this.createChildGenerator('item');
-        const templateCode = childGen.generateObjectLiteralForMap(node.template);
-        return this.mapArray(innerResult, `(item, index, arr) => (${templateCode})`, 'pipe');
+        childGen.localVariables = new Set(this.localVariables);
+        const cb = this.generateMapCallback(childGen, node.template);
+        return this.mapArray(innerResult, cb, 'pipe');
       }
     }
 
